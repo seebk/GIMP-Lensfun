@@ -1,0 +1,28 @@
+Changes:
+
+0.2.1
+########################################
+- some minor changes and fixes for windows compatibility.
+- a complete windows package including Lensfun library, 
+  database and all necessary dependencies is now available
+- processing is parallelized on multi core processors 
+  using OpenMP
+
+0.2
+########################################
+- A LOT of code cleanups and stability improvements 
+- Bilinear interpolation is now used instead of nearest 
+  neighbor interpolation
+- Added possibility to correct vignetting and CA (but
+  currently no lens in database has correction data for 
+  these)
+
+0.1.1
+########################################
+- Fixed crash on unknown cameras in exif
+- Added option to scale corrected image 
+  without black borders
+
+0.1 
+########################################
+Initial release
