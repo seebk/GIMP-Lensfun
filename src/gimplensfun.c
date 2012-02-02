@@ -736,7 +736,7 @@ static void process_image (GimpDrawable *drawable) {
                          TRUE, TRUE);
 
     //Init input and output buffer
-    ImgBuffer = g_new (guchar, channels * (imgwidth) * (imgheight));
+    ImgBuffer = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
     ImgBufferOut = g_new (guchar, channels * imgwidth * imgheight);
     
     // Copy pixel data from GIMP to internal buffer
@@ -788,18 +788,18 @@ static void process_image (GimpDrawable *drawable) {
             {
                 if ((CurrCoord [0]>0) && (ceil(CurrCoord [0])<imgwidth) && (CurrCoord [1]>0) && (ceil(CurrCoord [1])<imgheight))  {
                     ImgBufferOut[OutputBufferCoord] = InterpolateLinear(ImgBuffer, imgwidth, channels, CurrCoord [0], CurrCoord [1], 0);
-                OutputBufferCoord++;
+                    OutputBufferCoord++;
                     ImgBufferOut[OutputBufferCoord] = InterpolateLinear(ImgBuffer, imgwidth, channels, CurrCoord [0], CurrCoord [1], 1);
-                OutputBufferCoord++;
+                    OutputBufferCoord++;
                     ImgBufferOut[OutputBufferCoord] = InterpolateLinear(ImgBuffer, imgwidth, channels, CurrCoord [0], CurrCoord [1], 2);
-                OutputBufferCoord++;
+                    OutputBufferCoord++;
                 } else {
                     ImgBufferOut[OutputBufferCoord] = 0;
-                OutputBufferCoord++;
+                    OutputBufferCoord++;
                     ImgBufferOut[OutputBufferCoord] = 0;
-                OutputBufferCoord++;
+                    OutputBufferCoord++;
                     ImgBufferOut[OutputBufferCoord] = 0;
-                OutputBufferCoord++;
+                    OutputBufferCoord++;
                 }
                 // move pointer to next pixel
                 CurrCoord += 2 * 3;
