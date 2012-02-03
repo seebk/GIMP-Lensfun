@@ -124,7 +124,7 @@ static MyLensfunOpts sLensfunParameters =
 //--------------------------------------------------------------------
 
 
-// GIMP Plugin 
+// GIMP Plugin
 GimpPlugInInfo PLUG_IN_INFO =
 {
     NULL,
@@ -298,6 +298,9 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
     int iCurrCameraID   = -1;
     int iCurrLensId     = -1;
 
+    if (pcNewMaker.empty()==true)
+            return;
+
     // try to match maker with predefined list
     for (int i = 0; CameraMakers[i].compare("NULL")!=0; i++)
     {
@@ -316,6 +319,7 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
     store = gtk_combo_box_get_model( GTK_COMBO_BOX(lens_combo) );
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
+
 
     // get all cameras from maker out of database
     cameras = ldb->FindCamerasExt (CameraMakers[iCurrMakerID].c_str(), NULL, LF_SEARCH_LOOSE );
@@ -360,14 +364,14 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
             gtk_combo_box_set_active(GTK_COMBO_BOX(lens_combo), i);
             sLensfunParameters.Lens = pcNewLens;
         }
-        
+
         if (StrCompare(string(lf_mlstr_get(lenses[i]->Model)), pcNewLens)==0)
             iCurrLensId = i;
     }
-    
-    gtk_widget_set_sensitive(CorrTCA, false);        
+
+    gtk_widget_set_sensitive(CorrTCA, false);
     gtk_widget_set_sensitive(CorrVignetting, false);
-    
+
     if (iCurrLensId >= 0)
     {
         if (lenses[iCurrLensId]->CalibTCA != NULL)
@@ -441,15 +445,15 @@ modify_changed( GtkCheckButton *togglebutn,
                     gpointer     data )
 {
     sLensfunParameters.ModifyFlags = 0;
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrDistortion)) 
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrDistortion))
         && GTK_WIDGET_SENSITIVE(CorrDistortion))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_DISTORTION;
-    
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrTCA)) 
+
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrTCA))
         && GTK_WIDGET_SENSITIVE(CorrTCA))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_TCA;
-    
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrVignetting)) 
+
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrVignetting))
         && GTK_WIDGET_SENSITIVE(CorrDistortion))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_VIGNETTING;
 }
@@ -463,7 +467,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     GtkWidget *camera_label, *lens_label, *maker_label;
     GtkWidget *focal_label, *aperture_label;
     GtkWidget *scalecheck;
-    
+
     GtkWidget *spinbutton;
     GtkObject *spinbutton_adj;
     GtkWidget *spinbutton_aperture;
@@ -471,7 +475,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     GtkWidget *frame_label, *frame_label2;
     GtkWidget *table, *table2;
     gboolean   run;
-    
+
     gint       iTableRow = 0;
     
     gimp_ui_init ("mylensfun", FALSE);
@@ -508,7 +512,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_misc_set_alignment(GTK_MISC(maker_label),0.0,0.5);
     gtk_widget_show (maker_label);
     gtk_table_attach(GTK_TABLE(table), maker_label, 0, 1, iTableRow, iTableRow+1, GTK_FILL, GTK_FILL, 0,0 );
-    
+
     maker_combo = gtk_combo_box_new_text();
     gtk_widget_show (maker_combo);
 
@@ -518,9 +522,9 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     }
 
     gtk_table_attach_defaults(GTK_TABLE(table), maker_combo, 1, 2, iTableRow, iTableRow+1 );
-    
+
     iTableRow++;
-    
+
     // camera
     camera_label = gtk_label_new ("Camera:");
     gtk_misc_set_alignment(GTK_MISC(camera_label),0.0,0.5);
@@ -533,7 +537,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_table_attach_defaults(GTK_TABLE(table), camera_combo, 1,2, iTableRow, iTableRow+1 );
 
     iTableRow++;
-    
+
     // lens
     lens_label = gtk_label_new ("Lens:");
     gtk_misc_set_alignment(GTK_MISC(lens_label),0.0,0.5);
@@ -565,18 +569,18 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_misc_set_alignment(GTK_MISC(aperture_label),0.0,0.5);
     gtk_widget_show (focal_label);
     gtk_table_attach_defaults(GTK_TABLE(table), aperture_label, 0,1,iTableRow, iTableRow+1 );
-    
+
     spinbutton_aperture_adj = gtk_adjustment_new (sLensfunParameters.Aperture, 0, 128, 0.1, 0, 0);
     spinbutton_aperture = gtk_spin_button_new (GTK_ADJUSTMENT (spinbutton_aperture_adj), 2, 1);
     gtk_widget_show (spinbutton_aperture);
     gtk_table_attach_defaults(GTK_TABLE(table), spinbutton_aperture, 1,2,iTableRow, iTableRow+1 );
     iTableRow++;
-    
-    gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton_aperture), TRUE);    
+
+    gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton_aperture), TRUE);
 
     gtk_container_add (GTK_CONTAINER (frame), table);
     gtk_widget_show_all(table);
-    
+
     frame2 = gtk_frame_new (NULL);
     gtk_widget_show (frame2);
     gtk_box_pack_start (GTK_BOX (main_vbox), frame2, TRUE, TRUE, 0);
@@ -591,26 +595,26 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_table_set_homogeneous(GTK_TABLE(table2), false);
     gtk_table_set_row_spacings(GTK_TABLE(table2), 2);
     gtk_table_set_col_spacings(GTK_TABLE(table2), 2);
-    gtk_container_set_border_width(GTK_CONTAINER(table2), 10);    
+    gtk_container_set_border_width(GTK_CONTAINER(table2), 10);
 
     iTableRow = 0;
-    
+
     // scale to fit checkbox
     scalecheck = gtk_check_button_new_with_label("Scale to fit");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
     gtk_widget_show (scalecheck);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scalecheck), !sLensfunParameters.Scale);
     gtk_table_attach_defaults(GTK_TABLE(table2), scalecheck, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;    
- 
+    iTableRow++;
+
     // enable distortion correction
     CorrDistortion = gtk_check_button_new_with_label("Distortion");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
     gtk_widget_show (CorrDistortion);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrDistortion), true);
     gtk_table_attach_defaults(GTK_TABLE(table2), CorrDistortion, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;   
-    
+    iTableRow++;
+
     // enable vignetting correction
     CorrVignetting = gtk_check_button_new_with_label("Vignetting");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
@@ -618,7 +622,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_widget_set_sensitive(CorrVignetting, false);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrVignetting), false);
     gtk_table_attach_defaults(GTK_TABLE(table2), CorrVignetting, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;   
+    iTableRow++;
 
     // enable TCA correction
     CorrTCA = gtk_check_button_new_with_label("Chromatic Aberration");
@@ -627,11 +631,11 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_widget_set_sensitive(CorrTCA, false);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrTCA), false);
     gtk_table_attach_defaults(GTK_TABLE(table2), CorrTCA, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;       
+    iTableRow++;
 
     gtk_container_add (GTK_CONTAINER (frame2), table2);
-    gtk_widget_show_all(table2);        
-    
+    gtk_widget_show_all(table2);
+
     // try to set combo boxes to exif
     dialog_set_cboxes(sLensfunParameters.CamMaker,
                       sLensfunParameters.Camera,
@@ -645,14 +649,14 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     g_signal_connect( G_OBJECT( lens_combo ), "changed",
                       G_CALLBACK( lens_cb_changed ), NULL );
     g_signal_connect (spinbutton_adj, "value_changed",
-                      G_CALLBACK (focal_changed), spinbutton_adj);    
-    
+                      G_CALLBACK (focal_changed), spinbutton_adj);
+
     g_signal_connect( G_OBJECT( scalecheck ), "toggled",
                       G_CALLBACK( scalecheck_changed ), NULL );
     g_signal_connect( G_OBJECT( CorrDistortion ), "toggled",
-                      G_CALLBACK( modify_changed ), NULL );     
+                      G_CALLBACK( modify_changed ), NULL );
     g_signal_connect( G_OBJECT( CorrTCA ), "toggled",
-                      G_CALLBACK( modify_changed ), NULL );   
+                      G_CALLBACK( modify_changed ), NULL );
     g_signal_connect( G_OBJECT( CorrVignetting ), "toggled",
                       G_CALLBACK( modify_changed ), NULL );   
     
@@ -672,25 +676,25 @@ inline int InterpolateLinear(guchar *ImgBuffer, gint imgwidth, gint channels, fl
 {
     // interpolated values in x and y  direction
     float   x1, x2, y;
-    
+
     // surrounding integer rounded coordinates
     int     xl, xr, yu, yl;
-    
+
     xl = floor(xpos);
     xr = ceil (xpos + 1e-10);
     yu = floor(ypos);
     yl = ceil (ypos + 1e-10);
-    
+
     float px1y1 = (float) ImgBuffer[ (channels*imgwidth*yu) + (xl*channels) + chan ];
     float px1y2 = (float) ImgBuffer[ (channels*imgwidth*yl) + (xl*channels) + chan ];
     float px2y1 = (float) ImgBuffer[ (channels*imgwidth*yu) + (xr*channels) + chan ];
     float px2y2 = (float) ImgBuffer[ (channels*imgwidth*yl) + (xr*channels) + chan ];
-    
+
     x1 = (static_cast<float>(xr) - xpos)*px1y1 + (xpos - static_cast<float>(xl))*px2y1;
     x2 = (static_cast<float>(xr) - xpos)*px1y2 + (xpos - static_cast<float>(xl))*px2y2;
 
     y  = (ypos - static_cast<float>(yu))*x2    + (static_cast<float>(yl) - ypos)*x1;
-    
+
     return roundfloat2int(y);
 }
 //--------------------------------------------------------------------
@@ -698,7 +702,7 @@ inline int InterpolateNearest(guchar *ImgBuffer, gint imgwidth, gint channels, f
 {
     int x = roundfloat2int(xpos);
     int y = roundfloat2int(ypos);
-    
+
     return ImgBuffer[ (channels*imgwidth*y) + (x*channels) + chan ];
 }
 //--------------------------------------------------------------------
@@ -737,8 +741,8 @@ static void process_image (GimpDrawable *drawable) {
 
     //Init input and output buffer
     ImgBuffer = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
-    ImgBufferOut = g_new (guchar, channels * imgwidth * imgheight);
-    
+    ImgBufferOut = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
+
     // Copy pixel data from GIMP to internal buffer
     gimp_pixel_rgn_get_rect (&rgn_in, ImgBuffer, x1, y1, imgwidth, imgheight);
 
@@ -756,12 +760,12 @@ static void process_image (GimpDrawable *drawable) {
     printf("Focal Length: %f\n", sLensfunParameters.Focal);
     printf("F-Stop: %f\n", sLensfunParameters.Aperture);
     printf("Crop Factor: %f\n", sLensfunParameters.Crop);
-    printf("Scale: %f\n", sLensfunParameters.Scale); 
-    
-    int iRowCount = 0;    
+    printf("Scale: %f\n", sLensfunParameters.Scale);
+
+    int iRowCount = 0;
     #pragma omp parallel
     {
-        // buffer containing undistorted coordinates for one row        
+        // buffer containing undistorted coordinates for one row
         float *UndistCoord = g_new (float, imgwidth*2*channels);
 
         //init lensfun modifier
@@ -769,20 +773,20 @@ static void process_image (GimpDrawable *drawable) {
         mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
                         sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
                         sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
-        
-        //main loop for processing, iterate through rows          
-        #pragma omp for      
+
+        //main loop for processing, iterate through rows
+        #pragma omp for
         for (int i = 0; i < imgheight; i++)
         {
-            mod->ApplyColorModification( &ImgBuffer[(channels*imgwidth*i)], 
-                                        0, i, imgwidth, 1, 
+            mod->ApplyColorModification( &ImgBuffer[(channels*imgwidth*i)],
+                                        0, i, imgwidth, 1,
                                         LF_CR_3(RED, GREEN, BLUE),
                                         channels*imgwidth);
-            
+
             mod->ApplySubpixelGeometryDistortion (0, i, imgwidth, 1, UndistCoord);
-            
+
             float*  CurrCoord = UndistCoord;
-            int     OutputBufferCoord = channels*imgwidth*i;	   
+            int     OutputBufferCoord = channels*imgwidth*i;
             //iterate through subpixels in one row
             for (int j = 0; j < imgwidth*channels; j += channels)
             {
@@ -821,13 +825,6 @@ static void process_image (GimpDrawable *drawable) {
     //write data back to gimp
     gimp_pixel_rgn_set_rect (&rgn_out, ImgBufferOut, x1, y1, imgwidth, imgheight);
 
-    // free memory
-    g_free(ImgBufferOut);
-    g_free(ImgBuffer);
-
-    lf_free(lenses);
-    lf_free(cameras);
-
     gimp_drawable_flush (drawable);
     gimp_drawable_merge_shadow (drawable->drawable_id, TRUE);
     gimp_drawable_update (drawable->drawable_id,
@@ -835,6 +832,13 @@ static void process_image (GimpDrawable *drawable) {
                           imgwidth, imgheight);
     gimp_displays_flush ();
     gimp_drawable_detach (drawable);
+
+    // free memory
+    g_free(ImgBufferOut);
+    g_free(ImgBuffer);
+
+    lf_free(lenses);
+    lf_free(cameras);
 }
 //--------------------------------------------------------------------
 
@@ -854,11 +858,20 @@ static int read_opts_from_exif(const char *filename) {
     const lfLens    *lens        = 0;
     std::string LensNameMN;
 
-    // read exif from file
-    Exiv2image = Exiv2::ImageFactory::open(string(filename));
-    Exiv2image.get();
-    Exiv2image->readMetadata();
-    exifData = Exiv2image->exifData();
+    try {
+        // read exif from file
+        Exiv2image = Exiv2::ImageFactory::open(string(filename));
+        Exiv2image.get();
+        Exiv2image->readMetadata();
+        exifData = Exiv2image->exifData();
+
+        if (exifData.empty()) {
+            return -1;
+        }
+    }
+    catch (Exiv2::AnyError& e) {
+        return -1;
+    }
 
     // search database for camera
     cameras = ldb->FindCameras (exifData["Exif.Image.Make"].toString().c_str(), exifData["Exif.Image.Model"].toString().c_str());
