@@ -31,7 +31,9 @@ CHANGES:
 #include <math.h>
 #include <string>
 #include <vector>
+#include <float.h>
 
+#include "LUT.h"
 #include <lensfun.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
@@ -67,6 +69,18 @@ lfDatabase *ldb;
 bool bComboBoxLock = false;
 //--------------------------------------------------------------------
 
+
+//####################################################################
+// interpolation parameters
+const int cLanczosWidth = 2;
+const int cLanczosTableRes = 256;
+LUT<float> LanczosLUT (cLanczosWidth * 2 * cLanczosTableRes + 1);
+
+typedef enum GL_INTERPOL {
+	GL_INTERPOL_NN,		// Nearest Neighbour
+	GL_INTERPOL_BL,		// Bilinear
+	GL_INTERPOL_LZ		// Lanczos
+} glInterpolationType;
 
 //####################################################################
 // List of camera makers
@@ -672,7 +686,75 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
 
 //####################################################################
 // Interpolation functions
-inline int InterpolateLinear(guchar *ImgBuffer, gint imgwidth, gint channels, float xpos, float ypos, int chan)
+inline float Lanczos(float x)
+{
+    if ( (x<FLT_MIN) && (x>-FLT_MIN) )
+        return 1.0f;
+
+    if ( (x >= cLanczosWidth) && (x <= (-1)*cLanczosWidth) )
+        return 0.0f;
+
+    float xpi = x * static_cast<float>(M_PI);
+    return ( cLanczosWidth * sin(xpi) * sin(xpi/cLanczosWidth) ) / ( xpi*xpi );
+}
+//--------------------------------------------------------------------
+void InitInterpolation(glInterpolationType intType)
+{
+    switch(intType) {
+        case GL_INTERPOL_NN: break;
+        case GL_INTERPOL_BL: break;
+        case GL_INTERPOL_LZ:
+                for (int i = -cLanczosWidth*cLanczosTableRes; i < cLanczosWidth*cLanczosTableRes; i++) {
+                    LanczosLUT[i + cLanczosWidth*cLanczosTableRes] = Lanczos(static_cast<float>(i)/static_cast<float>(cLanczosTableRes));
+                }
+
+                break;
+    }
+}
+//--------------------------------------------------------------------
+inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
+{
+
+    int   xl   = int(xpos);
+    int   yl   = int(ypos);
+    float y    = 0.0f;
+    float norm = 0.0f;
+    float L    = 0.0f;
+
+    // border checking
+    if ((xl-cLanczosWidth+1 < 0) ||
+        (xl+cLanczosWidth >= w)  ||
+        (yl-cLanczosWidth+1 < 0) ||
+        (yl+cLanczosWidth >= h))
+    {
+        return 0;
+    }    
+
+    // convolve with lanczos kernel
+    for (int i = xl-cLanczosWidth+1; i < xl+cLanczosWidth; i++) {
+        for (int j = yl-cLanczosWidth+1; j < yl+cLanczosWidth; j++) {
+            L = LanczosLUT[ (xpos - static_cast<float>(i))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ]
+                   * LanczosLUT[ (ypos - static_cast<float>(j))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ];
+            // L = Lanczos(xpos - static_cast<float>(i))
+            //                   * Lanczos(ypos - static_cast<float>(j));
+            y += static_cast<float>(ImgBuffer[ (channels*w*j) + (i*channels) + chan ]) * L;
+            norm += L;
+        }
+    }
+    // normalize
+    y = y / norm;
+
+    // clip
+    if (y>255)
+        y = 255;
+    if (y<0)
+        y = 0;
+        
+    // round to integer and return
+    return roundfloat2int(y);
+}
+//--------------------------------------------------------------------
+inline int InterpolateLinear(guchar *ImgBuffer, gint imgwidth, gint imgheight, gint channels, float xpos, float ypos, int chan)
 {
     // interpolated values in x and y  direction
     float   x1, x2, y;
@@ -742,6 +824,7 @@ static void process_image (GimpDrawable *drawable) {
     //Init input and output buffer
     ImgBuffer = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
     ImgBufferOut = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
+    InitInterpolation(GL_INTERPOL_LZ);
 
     // Copy pixel data from GIMP to internal buffer
     gimp_pixel_rgn_get_rect (&rgn_in, ImgBuffer, x1, y1, imgwidth, imgheight);
@@ -785,17 +868,17 @@ static void process_image (GimpDrawable *drawable) {
 
             mod->ApplySubpixelGeometryDistortion (0, i, imgwidth, 1, UndistCoord);
 
-            float*  CurrCoord = UndistCoord;
             int     OutputBufferCoord = channels*imgwidth*i;
+            float*  UndistIter = UndistCoord;
             //iterate through subpixels in one row
             for (int j = 0; j < imgwidth*channels; j += channels)
             {
-                if ((CurrCoord [0]>0) && (ceil(CurrCoord [0])<imgwidth) && (CurrCoord [1]>0) && (ceil(CurrCoord [1])<imgheight))  {
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLinear(ImgBuffer, imgwidth, channels, CurrCoord [0], CurrCoord [1], 0);
+                if ((UndistIter [0]>0) && (ceil(UndistIter [0])<imgwidth) && (UndistIter [1]>0) && (ceil(UndistIter [1])<imgheight))  {
+                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
                     OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLinear(ImgBuffer, imgwidth, channels, CurrCoord [0], CurrCoord [1], 1);
+                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 1);
                     OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLinear(ImgBuffer, imgwidth, channels, CurrCoord [0], CurrCoord [1], 2);
+                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 2);
                     OutputBufferCoord++;
                 } else {
                     ImgBufferOut[OutputBufferCoord] = 0;
@@ -806,7 +889,7 @@ static void process_image (GimpDrawable *drawable) {
                     OutputBufferCoord++;
                 }
                 // move pointer to next pixel
-                CurrCoord += 2 * 3;
+                UndistIter += 2 * 3;
             }
             #pragma omp atomic
             iRowCount++;
