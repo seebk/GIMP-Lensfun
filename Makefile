@@ -2,7 +2,7 @@ CFLAGS = -O3 -Wall $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun 
 LIBS = $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2)
 PLUGIN = gimplensfun
 SOURCES = src/gimplensfun.c
-CC = /usr/bin/g++-4.4
+CC = g++
 # LD = gcc-4.4
 # END CONFIG ##################################################################
 
