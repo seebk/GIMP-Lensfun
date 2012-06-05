@@ -1075,9 +1075,10 @@ run (const gchar*   name,
         ldb->Load ();
 
         // read exif data
-        if (read_opts_from_exif(gimp_image_get_filename(imageID))!=0) {
-            printf("No Exif data found");
-        }
+        const gchar *filename = gimp_image_get_filename(imageID);
+
+        if ((filename != NULL) && (read_opts_from_exif(filename) != 0))
+            g_print("No Exif data found");
 
         /* Display the dialog */
         if (! create_dialog_window (drawable))
