@@ -105,7 +105,7 @@ const string    CameraMakers[] = {
 
 
 //####################################################################
-// struct for storing camera/lens info and parameters
+// struct for holding camera/lens info and parameters
 typedef struct
 {
     int ModifyFlags;
@@ -136,6 +136,39 @@ static MyLensfunOpts sLensfunParameters =
     LF_RECTILINEAR
 };
 //--------------------------------------------------------------------
+
+
+//####################################################################
+// struct for storing camera/lens info and parameters
+typedef struct
+{
+    int ModifyFlags;
+    bool Inverse;
+    char Camera[255];
+    char CamMaker[255];
+    char Lens[255];
+    float Scale;
+    float Crop;
+    float Focal;
+    float Aperture;
+    float Distance;
+    lfLensType TargetGeom;
+} MyLensfunOptStorage;
+//--------------------------------------------------------------------
+static MyLensfunOptStorage sLensfunParameterStorage =
+{
+    LF_MODIFY_DISTORTION,
+    false,
+    "",
+    "",
+    "",
+    0.0,
+    0,
+    0,
+    0,
+    1.0,
+    LF_RECTILINEAR
+};
 
 
 // GIMP Plugin
@@ -312,6 +345,10 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
     int iCurrCameraID   = -1;
     int iCurrLensId     = -1;
 
+    sLensfunParameters.CamMaker.clear();    
+    sLensfunParameters.Camera.clear();
+    sLensfunParameters.Lens.clear();
+
     if (pcNewMaker.empty()==true)
             return;
 
@@ -327,6 +364,9 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
     // return if no maker has been identified
     if (iCurrMakerID==-1)
         return;
+
+    // store cam maker
+    sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID];  
 
     // clear camera/lens combobox
     store = gtk_combo_box_get_model( GTK_COMBO_BOX(camera_combo) );
@@ -347,7 +387,6 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
         // set to active if model matches current camera
         if ((!pcNewCamera.empty()) && (StrCompare(pcNewCamera, vCameraList[i])==0)) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(camera_combo), i);
-            sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID].c_str();
             sLensfunParameters.Camera = pcNewCamera;
         }
 
@@ -445,6 +484,13 @@ focal_changed( GtkComboBox *combo,
                gpointer     data )
 {
     sLensfunParameters.Focal = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
+}
+//--------------------------------------------------------------------
+static void
+aperture_changed( GtkComboBox *combo,
+               gpointer     data )
+{
+    sLensfunParameters.Aperture = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
 }
 //--------------------------------------------------------------------
 static void
@@ -664,7 +710,9 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
                       G_CALLBACK( lens_cb_changed ), NULL );
     g_signal_connect (spinbutton_adj, "value_changed",
                       G_CALLBACK (focal_changed), spinbutton_adj);
-
+    g_signal_connect (spinbutton_aperture_adj, "value_changed",
+                      G_CALLBACK (aperture_changed), spinbutton_aperture_adj);
+                      
     g_signal_connect( G_OBJECT( scalecheck ), "toggled",
                       G_CALLBACK( scalecheck_changed ), NULL );
     g_signal_connect( G_OBJECT( CorrDistortion ), "toggled",
@@ -1038,6 +1086,45 @@ static int read_opts_from_exif(const char *filename) {
 //--------------------------------------------------------------------
 
 
+static void loadSettings() {
+
+    gimp_get_data ("plug-in-gimplensfun", &sLensfunParameterStorage);
+
+    sLensfunParameters.ModifyFlags = sLensfunParameterStorage.ModifyFlags;
+    sLensfunParameters.Inverse  = sLensfunParameterStorage.Inverse;
+    if (strlen(sLensfunParameterStorage.Camera)>0) 
+        sLensfunParameters.Camera  = std::string(sLensfunParameterStorage.Camera);
+    if (strlen(sLensfunParameterStorage.CamMaker)>0) 
+        sLensfunParameters.CamMaker  = std::string(sLensfunParameterStorage.CamMaker);
+    if (strlen(sLensfunParameterStorage.Lens)>0) 
+        sLensfunParameters.Lens  = std::string(sLensfunParameterStorage.Lens);
+    sLensfunParameters.Scale    = sLensfunParameterStorage.Scale;
+    sLensfunParameters.Crop     = sLensfunParameterStorage.Crop;
+    sLensfunParameters.Focal    = sLensfunParameterStorage.Focal;
+    sLensfunParameters.Aperture = sLensfunParameterStorage.Aperture;
+    sLensfunParameters.Distance = sLensfunParameterStorage.Distance;
+    sLensfunParameters.TargetGeom = sLensfunParameterStorage.TargetGeom;    
+}
+
+
+static void storeSettings() {
+
+    sLensfunParameterStorage.ModifyFlags = sLensfunParameters.ModifyFlags;
+    sLensfunParameterStorage.Inverse  = sLensfunParameters.Inverse;
+    strcpy( sLensfunParameterStorage.Camera, sLensfunParameters.Camera.c_str() );
+    strcpy( sLensfunParameterStorage.CamMaker, sLensfunParameters.CamMaker.c_str() );    
+    strcpy( sLensfunParameterStorage.Lens, sLensfunParameters.Lens.c_str() );    
+    sLensfunParameterStorage.Scale    = sLensfunParameters.Scale;
+    sLensfunParameterStorage.Crop     = sLensfunParameters.Crop;
+    sLensfunParameterStorage.Focal    = sLensfunParameters.Focal;
+    sLensfunParameterStorage.Aperture = sLensfunParameters.Aperture;
+    sLensfunParameterStorage.Distance = sLensfunParameters.Distance;
+    sLensfunParameterStorage.TargetGeom = sLensfunParameters.TargetGeom;
+
+    gimp_set_data ("plug-in-gimplensfun", &sLensfunParameterStorage, sizeof (sLensfunParameterStorage));   
+}
+
+
 //####################################################################
 // Run()
 static void
@@ -1077,16 +1164,16 @@ run (const gchar*   name,
         // read exif data
         const gchar *filename = gimp_image_get_filename(imageID);
 
-        if ((filename != NULL) && (read_opts_from_exif(filename) != 0))
-            g_print("No Exif data found");
+        if ((filename == NULL) || (read_opts_from_exif(filename) != 0)) {
+            loadSettings();          
+        }
 
         /* Display the dialog */
-        if (! create_dialog_window (drawable))
-            return;
-
-        process_image(drawable);
-
-        //gimp_set_data ("plug-in-gimplensfun", &sLensfunParameters, sizeof (sLensfunParameters));
+        if (create_dialog_window (drawable)) {
+            process_image(drawable);
+        }
+        
+        storeSettings();
 
         lf_db_destroy(ldb);
     }
