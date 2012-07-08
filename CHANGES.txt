@@ -1,5 +1,13 @@
 Changes:
 
+0.2.2
+#######################################
+- Lanczos interpolation is now used instead of bilinear 
+  interpolation for sharper results
+- crash on unknown exif is fixed
+- settings are stored an reloaded if no exif data is 
+  present
+
 0.2.1
 ########################################
 - some minor changes and fixes for windows compatibility.

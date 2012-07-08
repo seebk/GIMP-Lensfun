@@ -8,7 +8,7 @@ INSTALLATION:
 
 Unzip the archive:
 
->$ tar -xvzf gimplensfun-0.x.x.tar.gz
+  >$ tar -xvzf gimplensfun-0.x.x.tar.gz
 
 Binaries can then be found under gimplensfun-0.x/bin/linux/. 
 Select the architecture for your system (i386/amd64) and copy
@@ -21,22 +21,27 @@ COMPILATION:
 ###########
 
 Dependencies:
-- libgimp2.0
-- libexiv2
-- liblensfun
+  - libgimp2.0
+  - libexiv2
+  - liblensfun
 
 On (K)Ubuntu you can easily install the required libs by 
 
->$ sudo apt-get install libgimp2.0-dev libexiv2-dev liblensfun-dev
+  >$ sudo apt-get install build-essential libgimp2.0-dev libexiv2-dev liblensfun-dev git
 
-Afterwards unzip the sources:
+On Fedora 15 (and probably other versions, too) you need to 
+install these packages:
 
->$ tar -xvzf gimplensfun-0.x.x.tar.gz
+  gcc, gcc-c++, gimp-devel-tools, lensfun-devel, exiv2-devel, git
+
+Afterwards get the sources from github:
+
+  >$ git clone git://github.com/seebk/GIMP-Lensfun.git
 
 Enter the directory and compile with "make":
 
->$ cd gimplensfun-0.x.x
->$ make
+  >$ cd gimplensfun-0.x.x
+  >$ make
 
 If all went fine copy the newly created binary file "gimplensfun" 
 to your GIMP plugins folder. 
