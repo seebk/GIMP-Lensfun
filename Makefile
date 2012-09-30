@@ -1,8 +1,9 @@
-CFLAGS = -O3 -Wall $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2) -fopenmp 
+CXXFLAGS ?= -O3
+CXXFLAGS += -Wall $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2) -fopenmp
 LIBS = $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2)
 PLUGIN = gimplensfun
 SOURCES = src/gimplensfun.c
-CC = g++
+CXX ?= g++
 # LD = gcc-4.4
 # END CONFIG ##################################################################
 
@@ -13,10 +14,10 @@ all: $(PLUGIN)
 OBJECTS = $(subst .c,.o,$(SOURCES))
 
 $(PLUGIN): $(OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS) $(LIBS)
 
 %.o: %.c $(HEADERS)
-	$(CC) $(CFLAGS) -c -o $@ $*.c
+	$(CXX) $(CXXFLAGS) -c -o $@ $*.c
 	
 install: $(PLUGIN)
 	@gimptool-2.0 --install-admin-bin $^
