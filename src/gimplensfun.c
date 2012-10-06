@@ -82,6 +82,7 @@ typedef enum GL_INTERPOL {
 	GL_INTERPOL_LZ		// Lanczos
 } glInterpolationType;
 
+
 //####################################################################
 // List of camera makers
 const string    CameraMakers[] = {
@@ -259,12 +260,6 @@ int StrCompare(const std::string& str1, const std::string& str2, bool CaseSensit
 
 }
 //--------------------------------------------------------------------
-template <typename T> string toStr(const T& t) {
-    ostringstream os;
-    os<<t;
-    return os.str();
-}
-//--------------------------------------------------------------------
 
 
 //####################################################################
@@ -332,7 +327,7 @@ static void PrintLenses (const lfLens **lenses)
 
 //####################################################################
 // set dialog combo boxes to values
-static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcNewLens) {
+static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLens) {
 
     vector<string> vCameraList;
     vector<string> vLensList;
@@ -349,13 +344,13 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
     sLensfunParameters.Camera.clear();
     sLensfunParameters.Lens.clear();
 
-    if (pcNewMaker.empty()==true)
+    if (sNewMake.empty()==true)
             return;
 
     // try to match maker with predefined list
     for (int i = 0; CameraMakers[i].compare("NULL")!=0; i++)
     {
-        if (StrCompare(CameraMakers[i], pcNewMaker)==0) {
+        if (StrCompare(CameraMakers[i], sNewMake)==0) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), i);
             iCurrMakerID = i;
         }
@@ -385,12 +380,12 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
     {
         gtk_combo_box_append_text( GTK_COMBO_BOX( camera_combo ), vCameraList[i].c_str());
         // set to active if model matches current camera
-        if ((!pcNewCamera.empty()) && (StrCompare(pcNewCamera, vCameraList[i])==0)) {
+        if ((!sNewCamera.empty()) && (StrCompare(sNewCamera, vCameraList[i])==0)) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(camera_combo), i);
-            sLensfunParameters.Camera = pcNewCamera;
+            sLensfunParameters.Camera = sNewCamera;
         }
 
-        if (StrCompare(string(lf_mlstr_get(cameras[i]->Model)), pcNewCamera)==0)
+        if (StrCompare(string(lf_mlstr_get(cameras[i]->Model)), sNewCamera)==0)
             iCurrCameraID = i;
     }
 
@@ -413,12 +408,12 @@ static void dialog_set_cboxes( string pcNewMaker, string pcNewCamera, string pcN
         gtk_combo_box_append_text( GTK_COMBO_BOX( lens_combo ), (vLensList[i]).c_str());
 
         // set active if lens matches current lens model
-        if ((!pcNewLens.empty()) && (StrCompare(pcNewLens, vLensList[i])==0)) {
+        if ((!sNewLens.empty()) && (StrCompare(sNewLens, vLensList[i])==0)) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(lens_combo), i);
-            sLensfunParameters.Lens = pcNewLens;
+            sLensfunParameters.Lens = sNewLens;
         }
 
-        if (StrCompare(string(lf_mlstr_get(lenses[i]->Model)), pcNewLens)==0)
+        if (StrCompare(string(lf_mlstr_get(lenses[i]->Model)), sNewLens)==0)
             iCurrLensId = i;
     }
 
@@ -516,7 +511,9 @@ modify_changed( GtkCheckButton *togglebutn,
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrVignetting))
         && GTK_WIDGET_SENSITIVE(CorrVignetting))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_VIGNETTING;
-}
+}//--------------------------------------------------------------------
+
+
 //####################################################################
 // Create gtk dialog window
 static gboolean create_dialog_window (GimpDrawable *drawable)
@@ -802,7 +799,7 @@ inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, 
     return roundfloat2int(y);
 }
 //--------------------------------------------------------------------
-inline int InterpolateLinear(guchar *ImgBuffer, gint imgwidth, gint imgheight, gint channels, float xpos, float ypos, int chan)
+inline int InterpolateLinear(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
 {
     // interpolated values in x and y  direction
     float   x1, x2, y;
@@ -815,10 +812,20 @@ inline int InterpolateLinear(guchar *ImgBuffer, gint imgwidth, gint imgheight, g
     yu = floor(ypos);
     yl = ceil (ypos + 1e-10);
 
-    float px1y1 = (float) ImgBuffer[ (channels*imgwidth*yu) + (xl*channels) + chan ];
-    float px1y2 = (float) ImgBuffer[ (channels*imgwidth*yl) + (xl*channels) + chan ];
-    float px2y1 = (float) ImgBuffer[ (channels*imgwidth*yu) + (xr*channels) + chan ];
-    float px2y2 = (float) ImgBuffer[ (channels*imgwidth*yl) + (xr*channels) + chan ];
+    // border checking
+    if ((xl < 0)  ||
+        (xr >= w) ||
+        (yu < 0)  ||
+        (yl >= h))
+    {
+        return 0;
+    }
+
+
+    float px1y1 = (float) ImgBuffer[ (channels*w*yu) + (xl*channels) + chan ];
+    float px1y2 = (float) ImgBuffer[ (channels*w*yl) + (xl*channels) + chan ];
+    float px2y1 = (float) ImgBuffer[ (channels*w*yu) + (xr*channels) + chan ];
+    float px2y2 = (float) ImgBuffer[ (channels*w*yl) + (xr*channels) + chan ];
 
     x1 = (static_cast<float>(xr) - xpos)*px1y1 + (xpos - static_cast<float>(xl))*px2y1;
     x2 = (static_cast<float>(xr) - xpos)*px1y2 + (xpos - static_cast<float>(xl))*px2y2;
@@ -828,12 +835,22 @@ inline int InterpolateLinear(guchar *ImgBuffer, gint imgwidth, gint imgheight, g
     return roundfloat2int(y);
 }
 //--------------------------------------------------------------------
-inline int InterpolateNearest(guchar *ImgBuffer, gint imgwidth, gint channels, float xpos, float ypos, int chan)
+inline int InterpolateNearest(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
 {
     int x = roundfloat2int(xpos);
     int y = roundfloat2int(ypos);
 
-    return ImgBuffer[ (channels*imgwidth*y) + (x*channels) + chan ];
+
+    // border checking
+    if ((x < 0)  ||
+        (x >= w) ||
+        (y < 0)  ||
+        (y >= h))
+    {
+        return 0;
+    }
+
+    return ImgBuffer[ (channels*w*y) + (x*channels) + chan ];
 }
 //--------------------------------------------------------------------
 
@@ -918,24 +935,17 @@ static void process_image (GimpDrawable *drawable) {
 
             int     OutputBufferCoord = channels*imgwidth*i;
             float*  UndistIter = UndistCoord;
+
             //iterate through subpixels in one row
             for (int j = 0; j < imgwidth*channels; j += channels)
             {
-                if ((UndistIter [0]>0) && (ceil(UndistIter [0])<imgwidth) && (UndistIter [1]>0) && (ceil(UndistIter [1])<imgheight))  {
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
-                    OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
-                    OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
-                    OutputBufferCoord++;
-                } else {
-                    ImgBufferOut[OutputBufferCoord] = 0;
-                    OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = 0;
-                    OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = 0;
-                    OutputBufferCoord++;
-                }
+                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
+                OutputBufferCoord++;
+                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
+                OutputBufferCoord++;
+                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
+                OutputBufferCoord++;
+
                 // move pointer to next pixel
                 UndistIter += 2 * 3;
             }
@@ -1086,6 +1096,8 @@ static int read_opts_from_exif(const char *filename) {
 //--------------------------------------------------------------------
 
 
+//####################################################################
+// store and load parameters and settings to/from gimp_data_storage
 static void loadSettings() {
 
     gimp_get_data ("plug-in-gimplensfun", &sLensfunParameterStorage);
@@ -1105,7 +1117,7 @@ static void loadSettings() {
     sLensfunParameters.Distance = sLensfunParameterStorage.Distance;
     sLensfunParameters.TargetGeom = sLensfunParameterStorage.TargetGeom;    
 }
-
+//--------------------------------------------------------------------
 
 static void storeSettings() {
 
@@ -1123,6 +1135,7 @@ static void storeSettings() {
 
     gimp_set_data ("plug-in-gimplensfun", &sLensfunParameterStorage, sizeof (sLensfunParameterStorage));   
 }
+//--------------------------------------------------------------------
 
 
 //####################################################################
