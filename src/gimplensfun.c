@@ -514,7 +514,7 @@ modify_changed( GtkCheckButton *togglebutn,
         sLensfunParameters.ModifyFlags |= LF_MODIFY_TCA;
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrVignetting))
-        && GTK_WIDGET_SENSITIVE(CorrDistortion))
+        && GTK_WIDGET_SENSITIVE(CorrVignetting))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_VIGNETTING;
 }
 //####################################################################
@@ -924,9 +924,9 @@ static void process_image (GimpDrawable *drawable) {
                 if ((UndistIter [0]>0) && (ceil(UndistIter [0])<imgwidth) && (UndistIter [1]>0) && (ceil(UndistIter [1])<imgheight))  {
                     ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
                     OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 1);
+                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
                     OutputBufferCoord++;
-                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 2);
+                    ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
                     OutputBufferCoord++;
                 } else {
                     ImgBufferOut[OutputBufferCoord] = 0;
