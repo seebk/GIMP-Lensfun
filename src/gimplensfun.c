@@ -34,7 +34,7 @@ CHANGES:
 #include <float.h>
 
 #include "LUT.h"
-#include <lensfun.h>
+#include <lensfun/lensfun.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
