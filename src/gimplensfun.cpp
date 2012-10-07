@@ -261,6 +261,11 @@ int StrCompare(const std::string& str1, const std::string& str2, bool CaseSensit
 
 }
 //--------------------------------------------------------------------
+unsigned long long int timespec2llu(struct timespec *ts) {
+	return (unsigned long long int) ( ((unsigned long long int)ts->tv_sec * 1000000000) + ts->tv_nsec);
+}
+//--------------------------------------------------------------------
+
 
 
 //####################################################################
@@ -865,6 +870,8 @@ static void process_image (GimpDrawable *drawable) {
     GimpPixelRgn rgn_in, rgn_out;
     guchar *ImgBuffer;
     guchar *ImgBufferOut;
+    
+    struct timespec profiling_start, profiling_stop;
 
     // get image size
     gimp_drawable_mask_bounds (drawable->drawable_id,
@@ -904,12 +911,16 @@ static void process_image (GimpDrawable *drawable) {
 
     const lfLens **lenses = ldb->FindLenses (cameras[0], NULL, sLensfunParameters.Lens.c_str());
 
-    printf("Camera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
-    printf("Lens: %s\n", lenses[0]->Model);
-    printf("Focal Length: %f\n", sLensfunParameters.Focal);
-    printf("F-Stop: %f\n", sLensfunParameters.Aperture);
-    printf("Crop Factor: %f\n", sLensfunParameters.Crop);
-    printf("Scale: %f\n", sLensfunParameters.Scale);
+    if (DEBUG) {
+		printf("Camera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
+		printf("Lens: %s\n", lenses[0]->Model);
+		printf("Focal Length: %f\n", sLensfunParameters.Focal);
+		printf("F-Stop: %f\n", sLensfunParameters.Aperture);
+		printf("Crop Factor: %f\n", sLensfunParameters.Crop);
+		printf("Scale: %f\n", sLensfunParameters.Scale);
+		
+		clock_gettime(CLOCK_REALTIME, &profiling_start);
+    }
 
     int iRowCount = 0;
     #pragma omp parallel
@@ -962,6 +973,12 @@ static void process_image (GimpDrawable *drawable) {
         }
         g_free(UndistCoord);
         lf_free(mod);
+    }
+    
+    if (DEBUG) {
+	    clock_gettime(CLOCK_REALTIME, &profiling_stop);
+	    unsigned long long int time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
+	    printf("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
     }
   
     //write data back to gimp
@@ -1057,8 +1074,10 @@ static int read_opts_from_exif(const char *filename) {
     if ((CamMaker.find("sony"))!=string::npos) {
         //MakerNoteKey = "Exif.Sony1.LensID";
     }
-    //std::cout << MakerNoteKey << "\n";
-    //std::cout << exifData[MakerNoteKey].toString() << "\n";
+    if (DEBUG) {
+		std::cout << MakerNoteKey << "\n";
+		std::cout << exifData[MakerNoteKey].toString() << "\n";
+    }
 
     //Decode Lens ID
     if ((MakerNoteKey.size()>0) && (exifData[MakerNoteKey].toString().size()>0))  {
@@ -1066,7 +1085,9 @@ static int read_opts_from_exif(const char *filename) {
         Exiv2::ExifData::const_iterator md = exifData.findKey(ek);
         if (md != exifData.end()) {
             LensNameMN = md->print(&exifData);
-            //std::cout << LensNameMN << "\n";
+		  if (DEBUG) {
+			std::cout << LensNameMN << "\n";
+		  }
             //Modify some lens names for better searching in lfDatabase
             if ((CamMaker.find("nikon"))!=std::string::npos) {
                 StrReplace(LensNameMN, "Nikon", "");

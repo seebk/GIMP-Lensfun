@@ -1,9 +1,11 @@
 
-# setup build parameters
+# set standard values, if not set by default
 CXX ?= g++
 CXXFLAGS ?= -O3
-CXXFLAGS += -Wall $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
-LDFLAGS = $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2)
+
+# project-specific flags
+CXXFLAGS += -Wall $(DEBUG) $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
+LDFLAGS += $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2)
 
 # comment to disable OpenMP
 CXXFLAGS += -fopenmp
@@ -42,3 +44,6 @@ useruninstall:
 
 clean:
 	rm -f src/*.o $(PLUGIN)
+
+debug:
+	$(MAKE) $(MAKEFILE) DEBUG="-g -g3 -gdwarf-2 -D DEBUG"
