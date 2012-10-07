@@ -33,7 +33,6 @@ CHANGES:
 #include <vector>
 #include <float.h>
 
-#include "LUT.h"
 #include <lensfun.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
@@ -45,6 +44,12 @@ CHANGES:
 	#include <exiv2/image.hpp>
 	#include <exiv2/exif.hpp>
 #endif
+
+#ifndef DEBUG
+#define DEBUG 0
+#endif
+
+#include "LUT.hpp"
 
 using namespace std;
 
@@ -260,6 +265,11 @@ int StrCompare(const std::string& str1, const std::string& str2, bool CaseSensit
 
 }
 //--------------------------------------------------------------------
+unsigned long long int timespec2llu(struct timespec *ts) {
+	return (unsigned long long int) ( ((unsigned long long int)ts->tv_sec * 1000000000) + ts->tv_nsec);
+}
+//--------------------------------------------------------------------
+
 
 
 //####################################################################
@@ -864,6 +874,8 @@ static void process_image (GimpDrawable *drawable) {
     GimpPixelRgn rgn_in, rgn_out;
     guchar *ImgBuffer;
     guchar *ImgBufferOut;
+    
+    struct timespec profiling_start, profiling_stop;
 
     // get image size
     gimp_drawable_mask_bounds (drawable->drawable_id,
@@ -903,24 +915,28 @@ static void process_image (GimpDrawable *drawable) {
 
     const lfLens **lenses = ldb->FindLenses (cameras[0], NULL, sLensfunParameters.Lens.c_str());
 
-    printf("Camera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
-    printf("Lens: %s\n", lenses[0]->Model);
-    printf("Focal Length: %f\n", sLensfunParameters.Focal);
-    printf("F-Stop: %f\n", sLensfunParameters.Aperture);
-    printf("Crop Factor: %f\n", sLensfunParameters.Crop);
-    printf("Scale: %f\n", sLensfunParameters.Scale);
+    if (DEBUG) {
+        printf("Camera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
+        printf("Lens: %s\n", lenses[0]->Model);
+        printf("Focal Length: %f\n", sLensfunParameters.Focal);
+        printf("F-Stop: %f\n", sLensfunParameters.Aperture);
+        printf("Crop Factor: %f\n", sLensfunParameters.Crop);
+        printf("Scale: %f\n", sLensfunParameters.Scale);
+        
+        clock_gettime(CLOCK_REALTIME, &profiling_start);
+    }
+
+    //init lensfun modifier
+    lfModifier *mod = lfModifier::Create (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
+    mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
+                         sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
+                         sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
 
     int iRowCount = 0;
     #pragma omp parallel
     {
         // buffer containing undistorted coordinates for one row
         float *UndistCoord = g_new (float, imgwidth*2*channels);
-
-        //init lensfun modifier
-        lfModifier *mod = lfModifier::Create (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
-        mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
-                        sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
-                        sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
 
         //main loop for processing, iterate through rows
         #pragma omp for
@@ -933,18 +949,17 @@ static void process_image (GimpDrawable *drawable) {
 
             mod->ApplySubpixelGeometryDistortion (0, i, imgwidth, 1, UndistCoord);
 
-            int     OutputBufferCoord = channels*imgwidth*i;
             float*  UndistIter = UndistCoord;
-
+            guchar *OutputBuffer = &ImgBufferOut[channels*imgwidth*i];
             //iterate through subpixels in one row
             for (int j = 0; j < imgwidth*channels; j += channels)
             {
-                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
-                OutputBufferCoord++;
-                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
-                OutputBufferCoord++;
-                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
-                OutputBufferCoord++;
+                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
+                OutputBuffer++;
+                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
+                OutputBuffer++;
+                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
+                OutputBuffer++;
 
                 // move pointer to next pixel
                 UndistIter += 2 * 3;
@@ -960,7 +975,14 @@ static void process_image (GimpDrawable *drawable) {
             }
         }
         g_free(UndistCoord);
-        lf_free(mod);
+    }
+    
+    lf_free(mod);
+    
+    if (DEBUG) {
+        clock_gettime(CLOCK_REALTIME, &profiling_stop);
+        unsigned long long int time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
+        printf("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
     }
   
     //write data back to gimp
@@ -1056,8 +1078,10 @@ static int read_opts_from_exif(const char *filename) {
     if ((CamMaker.find("sony"))!=string::npos) {
         //MakerNoteKey = "Exif.Sony1.LensID";
     }
-    //std::cout << MakerNoteKey << "\n";
-    //std::cout << exifData[MakerNoteKey].toString() << "\n";
+    if (DEBUG) {
+		std::cout << MakerNoteKey << "\n";
+		std::cout << exifData[MakerNoteKey].toString() << "\n";
+    }
 
     //Decode Lens ID
     if ((MakerNoteKey.size()>0) && (exifData[MakerNoteKey].toString().size()>0))  {
@@ -1065,7 +1089,9 @@ static int read_opts_from_exif(const char *filename) {
         Exiv2::ExifData::const_iterator md = exifData.findKey(ek);
         if (md != exifData.end()) {
             LensNameMN = md->print(&exifData);
-            //std::cout << LensNameMN << "\n";
+		  if (DEBUG) {
+			std::cout << LensNameMN << "\n";
+		  }
             //Modify some lens names for better searching in lfDatabase
             if ((CamMaker.find("nikon"))!=std::string::npos) {
                 StrReplace(LensNameMN, "Nikon", "");
