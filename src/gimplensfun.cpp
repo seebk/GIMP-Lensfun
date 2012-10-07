@@ -45,6 +45,10 @@ CHANGES:
 	#include <exiv2/exif.hpp>
 #endif
 
+#ifndef DEBUG
+#define DEBUG 0
+#endif
+
 #include "LUT.hpp"
 
 using namespace std;
@@ -912,27 +916,27 @@ static void process_image (GimpDrawable *drawable) {
     const lfLens **lenses = ldb->FindLenses (cameras[0], NULL, sLensfunParameters.Lens.c_str());
 
     if (DEBUG) {
-		printf("Camera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
-		printf("Lens: %s\n", lenses[0]->Model);
-		printf("Focal Length: %f\n", sLensfunParameters.Focal);
-		printf("F-Stop: %f\n", sLensfunParameters.Aperture);
-		printf("Crop Factor: %f\n", sLensfunParameters.Crop);
-		printf("Scale: %f\n", sLensfunParameters.Scale);
-		
-		clock_gettime(CLOCK_REALTIME, &profiling_start);
+        printf("Camera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
+        printf("Lens: %s\n", lenses[0]->Model);
+        printf("Focal Length: %f\n", sLensfunParameters.Focal);
+        printf("F-Stop: %f\n", sLensfunParameters.Aperture);
+        printf("Crop Factor: %f\n", sLensfunParameters.Crop);
+        printf("Scale: %f\n", sLensfunParameters.Scale);
+        
+        clock_gettime(CLOCK_REALTIME, &profiling_start);
     }
+
+    //init lensfun modifier
+    lfModifier *mod = lfModifier::Create (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
+    mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
+                         sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
+                         sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
 
     int iRowCount = 0;
     #pragma omp parallel
     {
         // buffer containing undistorted coordinates for one row
         float *UndistCoord = g_new (float, imgwidth*2*channels);
-
-        //init lensfun modifier
-        lfModifier *mod = lfModifier::Create (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
-        mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
-                        sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
-                        sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
 
         //main loop for processing, iterate through rows
         #pragma omp for
@@ -945,18 +949,17 @@ static void process_image (GimpDrawable *drawable) {
 
             mod->ApplySubpixelGeometryDistortion (0, i, imgwidth, 1, UndistCoord);
 
-            int     OutputBufferCoord = channels*imgwidth*i;
             float*  UndistIter = UndistCoord;
-
+            guchar *OutputBuffer = &ImgBufferOut[channels*imgwidth*i];
             //iterate through subpixels in one row
             for (int j = 0; j < imgwidth*channels; j += channels)
             {
-                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
-                OutputBufferCoord++;
-                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
-                OutputBufferCoord++;
-                ImgBufferOut[OutputBufferCoord] = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
-                OutputBufferCoord++;
+                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
+                OutputBuffer++;
+                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
+                OutputBuffer++;
+                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
+                OutputBuffer++;
 
                 // move pointer to next pixel
                 UndistIter += 2 * 3;
@@ -972,13 +975,14 @@ static void process_image (GimpDrawable *drawable) {
             }
         }
         g_free(UndistCoord);
-        lf_free(mod);
     }
     
+    lf_free(mod);
+    
     if (DEBUG) {
-	    clock_gettime(CLOCK_REALTIME, &profiling_stop);
-	    unsigned long long int time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
-	    printf("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
+        clock_gettime(CLOCK_REALTIME, &profiling_stop);
+        unsigned long long int time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
+        printf("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
     }
   
     //write data back to gimp
