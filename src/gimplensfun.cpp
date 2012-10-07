@@ -33,7 +33,6 @@ CHANGES:
 #include <vector>
 #include <float.h>
 
-#include "LUT.h"
 #include <lensfun.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
@@ -45,6 +44,8 @@ CHANGES:
 	#include <exiv2/image.hpp>
 	#include <exiv2/exif.hpp>
 #endif
+
+#include "LUT.hpp"
 
 using namespace std;
 
