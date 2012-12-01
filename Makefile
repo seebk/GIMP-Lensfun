@@ -12,7 +12,7 @@ CXXFLAGS += -fopenmp
 LDFLAGS += -fopenmp
 
 # project data
-PLUGIN = gimplensfun
+PLUGIN = gimp-lensfun
 SOURCES = src/gimplensfun.cpp
 HEADERS = src/LUT.hpp
 
