@@ -1,15 +1,35 @@
 
+# enable/disable debug mode
+DEBUG ?= 0
+ifeq ($(DEBUG), 1)
+    CXXFLAGS += -DDEBUG=1
+else
+    CXXFLAGS += -DDEBUG=0
+endif
+
+
 # set standard values, if not set by default
 CXX ?= g++
 CXXFLAGS ?= -O3
 
+
 # project-specific flags
-CXXFLAGS += -Wall $(DEBUG) $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
+CXXFLAGS += -Wall $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
 LDFLAGS += $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2)
 
-# comment to disable OpenMP
-CXXFLAGS += -fopenmp
-LDFLAGS += -fopenmp
+
+# set some system dependent options
+SYS := $(shell gcc -dumpmachine)
+ifneq (, $(findstring mingw, $(SYS)))
+	ifeq ($(DEBUG), 0)
+		LDFLAGS += -Wl,-subsystem,windows
+	endif
+else
+	# comment to disable OpenMP
+	CXXFLAGS += -fopenmp
+	LDFLAGS += -fopenmp
+endif
+
 
 # project data
 PLUGIN = gimp-lensfun

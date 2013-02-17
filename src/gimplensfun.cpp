@@ -37,13 +37,8 @@ CHANGES:
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
-#ifdef _WIN32
-	#include <image.hpp>
-	#include <exif.hpp>
-#else
-	#include <exiv2/image.hpp>
-	#include <exiv2/exif.hpp>
-#endif
+#include <exiv2/image.hpp>
+#include <exiv2/exif.hpp>
 
 #ifndef DEBUG
 #define DEBUG 0
@@ -82,9 +77,9 @@ const int cLanczosTableRes = 256;
 LUT<float> LanczosLUT (cLanczosWidth * 2 * cLanczosTableRes + 1);
 
 typedef enum GL_INTERPOL {
-	GL_INTERPOL_NN,		// Nearest Neighbour
-	GL_INTERPOL_BL,		// Bilinear
-	GL_INTERPOL_LZ		// Lanczos
+    GL_INTERPOL_NN,		// Nearest Neighbour
+    GL_INTERPOL_BL,		// Bilinear
+    GL_INTERPOL_LZ		// Lanczos
 } glInterpolationType;
 
 
@@ -265,9 +260,11 @@ int StrCompare(const std::string& str1, const std::string& str2, bool CaseSensit
 
 }
 //--------------------------------------------------------------------
+#ifdef POSIX
 unsigned long long int timespec2llu(struct timespec *ts) {
-	return (unsigned long long int) ( ((unsigned long long int)ts->tv_sec * 1000000000) + ts->tv_nsec);
+    return (unsigned long long int) ( ((unsigned long long int)ts->tv_sec * 1000000000) + ts->tv_nsec);
 }
+#endif
 //--------------------------------------------------------------------
 
 
@@ -350,7 +347,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     int iCurrCameraID   = -1;
     int iCurrLensId     = -1;
 
-    sLensfunParameters.CamMaker.clear();    
+    sLensfunParameters.CamMaker.clear();
     sLensfunParameters.Camera.clear();
     sLensfunParameters.Lens.clear();
 
@@ -371,7 +368,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
         return;
 
     // store cam maker
-    sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID];  
+    sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID];
 
     // clear camera/lens combobox
     store = gtk_combo_box_get_model( GTK_COMBO_BOX(camera_combo) );
@@ -379,12 +376,16 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     store = gtk_combo_box_get_model( GTK_COMBO_BOX(lens_combo) );
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
 
-
     // get all cameras from maker out of database
     cameras = ldb->FindCamerasExt (CameraMakers[iCurrMakerID].c_str(), NULL, LF_SEARCH_LOOSE );
-    for (int i=0; cameras [i]; i++)
-        vCameraList.push_back(string(lf_mlstr_get(cameras[i]->Model)));
-    sort(vCameraList.begin(), vCameraList.end());
+    if (cameras) {
+        for (int i=0; cameras [i]; i++){
+            vCameraList.push_back(string(lf_mlstr_get(cameras[i]->Model)));
+        }
+        sort(vCameraList.begin(), vCameraList.end());
+    } else {
+        return;
+    }
 
     for (unsigned int i=0; i<vCameraList.size(); i++)
     {
@@ -408,10 +409,15 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
 
     // find lenses for camera model
     lenses = ldb->FindLenses (cameras[iCurrCameraID], NULL, NULL);
-    vLensList.clear();
-    for (int i = 0; lenses [i]; i++)
-        vLensList.push_back(string(lf_mlstr_get(lenses[i]->Model)));
-    sort(vLensList.begin(), vLensList.end());
+    if (lenses) {
+        vLensList.clear();
+        for (int i = 0; lenses [i]; i++)
+            vLensList.push_back(string(lf_mlstr_get(lenses[i]->Model)));
+        sort(vLensList.begin(), vLensList.end());
+    } else {
+        lf_free(cameras);
+        return;
+    }
 
     for (unsigned int i = 0; i<vLensList.size(); i++)
     {
@@ -436,8 +442,8 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
             gtk_widget_set_sensitive(CorrTCA, true);
         if (lenses[iCurrLensId]->CalibVignetting != NULL)
             gtk_widget_set_sensitive(CorrVignetting, true);
-    }    
-    
+    }
+
     lf_free(lenses);
     lf_free(cameras);
 }
@@ -544,7 +550,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gboolean   run;
 
     gint       iTableRow = 0;
-    
+
     gimp_ui_init ("mylensfun", FALSE);
 
     dialog = gimp_dialog_new ("Lensfun", "mylensfun",
@@ -719,7 +725,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
                       G_CALLBACK (focal_changed), spinbutton_adj);
     g_signal_connect (spinbutton_aperture_adj, "value_changed",
                       G_CALLBACK (aperture_changed), spinbutton_aperture_adj);
-                      
+
     g_signal_connect( G_OBJECT( scalecheck ), "toggled",
                       G_CALLBACK( scalecheck_changed ), NULL );
     g_signal_connect( G_OBJECT( CorrDistortion ), "toggled",
@@ -727,8 +733,8 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     g_signal_connect( G_OBJECT( CorrTCA ), "toggled",
                       G_CALLBACK( modify_changed ), NULL );
     g_signal_connect( G_OBJECT( CorrVignetting ), "toggled",
-                      G_CALLBACK( modify_changed ), NULL );   
-    
+                      G_CALLBACK( modify_changed ), NULL );
+
     // show and run
     gtk_widget_show (dialog);
     run = (gimp_dialog_run (GIMP_DIALOG (dialog)) == GTK_RESPONSE_OK);
@@ -783,7 +789,7 @@ inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, 
         (yl+cLanczosWidth >= h))
     {
         return 0;
-    }    
+    }
 
     // convolve with lanczos kernel
     for (int i = xl-cLanczosWidth+1; i < xl+cLanczosWidth; i++) {
@@ -804,7 +810,7 @@ inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, 
         y = 255;
     if (y<0)
         y = 0;
-        
+
     // round to integer and return
     return roundfloat2int(y);
 }
@@ -874,8 +880,10 @@ static void process_image (GimpDrawable *drawable) {
     GimpPixelRgn rgn_in, rgn_out;
     guchar *ImgBuffer;
     guchar *ImgBufferOut;
-    
+
+    #ifdef POSIX
     struct timespec profiling_start, profiling_stop;
+    #endif
 
     // get image size
     gimp_drawable_mask_bounds (drawable->drawable_id,
@@ -916,14 +924,17 @@ static void process_image (GimpDrawable *drawable) {
     const lfLens **lenses = ldb->FindLenses (cameras[0], NULL, sLensfunParameters.Lens.c_str());
 
     if (DEBUG) {
-        printf("Camera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
-        printf("Lens: %s\n", lenses[0]->Model);
-        printf("Focal Length: %f\n", sLensfunParameters.Focal);
-        printf("F-Stop: %f\n", sLensfunParameters.Aperture);
-        printf("Crop Factor: %f\n", sLensfunParameters.Crop);
-        printf("Scale: %f\n", sLensfunParameters.Scale);
-        
+        g_print("\nApplied settings:\n");
+        g_print("\tCamera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
+        g_print("\tLens: %s\n", lenses[0]->Model);
+        g_print("\tFocal Length: %f\n", sLensfunParameters.Focal);
+        g_print("\F-Stop: %f\n", sLensfunParameters.Aperture);
+        g_print("\Crop Factor: %f\n", sLensfunParameters.Crop);
+        g_print("\Scale: %f\n", sLensfunParameters.Scale);
+
+        #ifdef POSIX
         clock_gettime(CLOCK_REALTIME, &profiling_start);
+        #endif
     }
 
     //init lensfun modifier
@@ -976,15 +987,17 @@ static void process_image (GimpDrawable *drawable) {
         }
         g_free(UndistCoord);
     }
-    
+
     lf_free(mod);
-    
+
+    #ifdef POSIX
     if (DEBUG) {
         clock_gettime(CLOCK_REALTIME, &profiling_stop);
         unsigned long long int time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
-        printf("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
+        g_print("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
     }
-  
+    #endif
+
     //write data back to gimp
     gimp_pixel_rgn_set_rect (&rgn_out, ImgBufferOut, x1, y1, imgwidth, imgheight);
 
@@ -1021,6 +1034,10 @@ static int read_opts_from_exif(const char *filename) {
     const lfLens    *lens        = 0;
     std::string LensNameMN;
 
+    if (DEBUG) {
+        g_print ("Reading exif data...");
+    }
+
     try {
         // read exif from file
         Exiv2image = Exiv2::ImageFactory::open(string(filename));
@@ -1029,10 +1046,16 @@ static int read_opts_from_exif(const char *filename) {
         exifData = Exiv2image->exifData();
 
         if (exifData.empty()) {
+            if (DEBUG) {
+                g_print ("no exif data found. \n");
+            }
             return -1;
         }
     }
     catch (Exiv2::AnyError& e) {
+        if (DEBUG) {
+            g_print ("exception on reading data. \n");
+        }
         return -1;
     }
 
@@ -1078,10 +1101,6 @@ static int read_opts_from_exif(const char *filename) {
     if ((CamMaker.find("sony"))!=string::npos) {
         //MakerNoteKey = "Exif.Sony1.LensID";
     }
-    if (DEBUG) {
-		std::cout << MakerNoteKey << "\n";
-		std::cout << exifData[MakerNoteKey].toString() << "\n";
-    }
 
     //Decode Lens ID
     if ((MakerNoteKey.size()>0) && (exifData[MakerNoteKey].toString().size()>0))  {
@@ -1089,9 +1108,7 @@ static int read_opts_from_exif(const char *filename) {
         Exiv2::ExifData::const_iterator md = exifData.findKey(ek);
         if (md != exifData.end()) {
             LensNameMN = md->print(&exifData);
-		  if (DEBUG) {
-			std::cout << LensNameMN << "\n";
-		  }
+
             //Modify some lens names for better searching in lfDatabase
             if ((CamMaker.find("nikon"))!=std::string::npos) {
                 StrReplace(LensNameMN, "Nikon", "");
@@ -1113,9 +1130,19 @@ static int read_opts_from_exif(const char *filename) {
         lf_free (lenses);
     }
     lf_free (cameras);
-    
+
     sLensfunParameters.Focal = exifData["Exif.Photo.FocalLength"].toFloat();
     sLensfunParameters.Aperture = exifData["Exif.Photo.FNumber"].toFloat();
+
+    if (DEBUG) {
+        g_print("\nExif Data:\n");
+        g_print("\tCamera: %s, %s\n", sLensfunParameters.CamMaker.c_str(), sLensfunParameters.Camera.c_str());
+        g_print("\tLens: %s\n", sLensfunParameters.Lens.c_str());
+        g_print("\tFocal Length: %f\n", sLensfunParameters.Focal);
+        g_print("\tF-Stop: %f\n", sLensfunParameters.Aperture);
+        g_print("\tCrop Factor: %f\n", sLensfunParameters.Crop);
+        g_print("\tScale: %f\n", sLensfunParameters.Scale);
+    }
 
     return 0;
 }
@@ -1130,18 +1157,18 @@ static void loadSettings() {
 
     sLensfunParameters.ModifyFlags = sLensfunParameterStorage.ModifyFlags;
     sLensfunParameters.Inverse  = sLensfunParameterStorage.Inverse;
-    if (strlen(sLensfunParameterStorage.Camera)>0) 
+    if (strlen(sLensfunParameterStorage.Camera)>0)
         sLensfunParameters.Camera  = std::string(sLensfunParameterStorage.Camera);
-    if (strlen(sLensfunParameterStorage.CamMaker)>0) 
+    if (strlen(sLensfunParameterStorage.CamMaker)>0)
         sLensfunParameters.CamMaker  = std::string(sLensfunParameterStorage.CamMaker);
-    if (strlen(sLensfunParameterStorage.Lens)>0) 
+    if (strlen(sLensfunParameterStorage.Lens)>0)
         sLensfunParameters.Lens  = std::string(sLensfunParameterStorage.Lens);
     sLensfunParameters.Scale    = sLensfunParameterStorage.Scale;
     sLensfunParameters.Crop     = sLensfunParameterStorage.Crop;
     sLensfunParameters.Focal    = sLensfunParameterStorage.Focal;
     sLensfunParameters.Aperture = sLensfunParameterStorage.Aperture;
     sLensfunParameters.Distance = sLensfunParameterStorage.Distance;
-    sLensfunParameters.TargetGeom = sLensfunParameterStorage.TargetGeom;    
+    sLensfunParameters.TargetGeom = sLensfunParameterStorage.TargetGeom;
 }
 //--------------------------------------------------------------------
 
@@ -1150,8 +1177,8 @@ static void storeSettings() {
     sLensfunParameterStorage.ModifyFlags = sLensfunParameters.ModifyFlags;
     sLensfunParameterStorage.Inverse  = sLensfunParameters.Inverse;
     strcpy( sLensfunParameterStorage.Camera, sLensfunParameters.Camera.c_str() );
-    strcpy( sLensfunParameterStorage.CamMaker, sLensfunParameters.CamMaker.c_str() );    
-    strcpy( sLensfunParameterStorage.Lens, sLensfunParameters.Lens.c_str() );    
+    strcpy( sLensfunParameterStorage.CamMaker, sLensfunParameters.CamMaker.c_str() );
+    strcpy( sLensfunParameterStorage.Lens, sLensfunParameters.Lens.c_str() );
     sLensfunParameterStorage.Scale    = sLensfunParameters.Scale;
     sLensfunParameterStorage.Crop     = sLensfunParameters.Crop;
     sLensfunParameterStorage.Focal    = sLensfunParameters.Focal;
@@ -1159,7 +1186,7 @@ static void storeSettings() {
     sLensfunParameterStorage.Distance = sLensfunParameters.Distance;
     sLensfunParameterStorage.TargetGeom = sLensfunParameters.TargetGeom;
 
-    gimp_set_data ("plug-in-gimplensfun", &sLensfunParameterStorage, sizeof (sLensfunParameterStorage));   
+    gimp_set_data ("plug-in-gimplensfun", &sLensfunParameterStorage, sizeof (sLensfunParameterStorage));
 }
 //--------------------------------------------------------------------
 
@@ -1195,23 +1222,25 @@ run (const gchar*   name,
     run_mode = GimpRunMode(param[0].data.d_int32);
     if (run_mode == GIMP_RUN_INTERACTIVE)
     {
-
+        if (DEBUG) g_print ("Loading database...");
         //Load lensfun database
         ldb = lf_db_new ();
         ldb->Load ();
 
         // read exif data
         const gchar *filename = gimp_image_get_filename(imageID);
+        if (DEBUG) g_print ("Image file path: %s\n", filename);
 
         if ((filename == NULL) || (read_opts_from_exif(filename) != 0)) {
-            loadSettings();          
+            loadSettings();
         }
 
+        if (DEBUG) g_print ("Creating dialog...\n");
         /* Display the dialog */
         if (create_dialog_window (drawable)) {
             process_image(drawable);
         }
-        
+
         storeSettings();
 
         lf_db_destroy(ldb);
