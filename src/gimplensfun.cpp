@@ -40,6 +40,9 @@ CHANGES:
 #include <exiv2/image.hpp>
 #include <exiv2/exif.hpp>
 
+#define VERSIONSTR "0.2.3"
+
+
 #ifndef DEBUG
 #define DEBUG 0
 #endif
@@ -553,7 +556,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
 
     gimp_ui_init ("mylensfun", FALSE);
 
-    dialog = gimp_dialog_new ("Lensfun", "mylensfun",
+    dialog = gimp_dialog_new ("GIMP-Lensfun (v" VERSIONSTR ")", "mylensfun",
                               NULL, GTK_DIALOG_MODAL ,
                               gimp_standard_help_func, "plug-in-lensfun",
                               GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -928,7 +931,7 @@ static void process_image (GimpDrawable *drawable) {
         g_print("\tCamera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
         g_print("\tLens: %s\n", lenses[0]->Model);
         g_print("\tFocal Length: %f\n", sLensfunParameters.Focal);
-        g_print("\F-Stop: %f\n", sLensfunParameters.Aperture);
+        g_print("\tF-Stop: %f\n", sLensfunParameters.Aperture);
         g_print("\tCrop Factor: %f\n", sLensfunParameters.Crop);
         g_print("\tScale: %f\n", sLensfunParameters.Scale);
 
