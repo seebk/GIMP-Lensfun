@@ -10,12 +10,12 @@ endif
 
 # set standard values, if not set by default
 CXX ?= g++
-CXXFLAGS ?= -O3
+CXXFLAGS += -O3
 
 
 # project-specific flags
 CXXFLAGS += -Wall $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
-LDFLAGS += $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2)
+LDFLAGS += $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2) -lstdc++
 
 
 # set some system dependent options
