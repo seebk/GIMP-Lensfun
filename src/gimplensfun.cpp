@@ -929,8 +929,8 @@ static void process_image (GimpDrawable *drawable) {
         g_print("\tLens: %s\n", lenses[0]->Model);
         g_print("\tFocal Length: %f\n", sLensfunParameters.Focal);
         g_print("\F-Stop: %f\n", sLensfunParameters.Aperture);
-        g_print("\Crop Factor: %f\n", sLensfunParameters.Crop);
-        g_print("\Scale: %f\n", sLensfunParameters.Scale);
+        g_print("\tCrop Factor: %f\n", sLensfunParameters.Crop);
+        g_print("\tScale: %f\n", sLensfunParameters.Scale);
 
         #ifdef POSIX
         clock_gettime(CLOCK_REALTIME, &profiling_start);
