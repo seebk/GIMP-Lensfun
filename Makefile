@@ -10,11 +10,11 @@ endif
 
 # set standard values, if not set by default
 CXX ?= g++
-CXXFLAGS += -O3
+CXXFLAGS += -O3 -Wall
 
 
 # project-specific flags
-CXXFLAGS += -Wall $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
+EXTRA_CXXFLAGS += $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
 LDFLAGS += $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2) -lstdc++
 
 
@@ -47,8 +47,8 @@ OBJECTS = $(subst .cpp,.o,$(SOURCES))
 $(PLUGIN): $(OBJECTS)
 	$(CXX) -o $@ $^ $(LDFLAGS)
 
-%.o: %.c $(HEADERS)
-	$(CXX) $(CXXFLAGS) -c -o $@ $*.c
+%.o: %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) $(EXTRA_CXXFLAGS) -c -o $@ $*.cpp
 
 install: $(PLUGIN)
 	@gimptool-2.0 --install-admin-bin $^
