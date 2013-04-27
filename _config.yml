@@ -1,0 +1,9 @@
+name: "GimpLensfun"
+description: "Lensfun plugin for GIMP"
+
+url: "http://localhost:4000"
+
+paginate: 10
+
+markdown: rdiscount
+permalink: pretty
