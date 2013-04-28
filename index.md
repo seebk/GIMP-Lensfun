@@ -42,16 +42,12 @@ It autodetects your camera, lens type and corresponding parameters from the EXIF
 
 This package includes sources and binaries for 32/64 bit linux systems.
 
-<a href="gimplensfun-0.2.1.tar.gz">gimplensfun-0.2.1.tar.gz</a> (66 kB)
+<a href="http://dl.bintray.com/content/seebk/GIMP-Lensfun/gimplensfun-0.2.2.tar.gz?direct">gimplensfun-0.2.2.tar.gz</a> (66 kB)
 
 
 #### Windows ####
 
-Since release 0.2.1 there is a Windows installer available. It copies GimpLensfun including the Lensfun library and database to your GIMP folder. Afterwards it registers these files in the GIMP uninstaller so it will be automatically removed when you remove GIMP. There is no seperate uninstall for GimpLensfun.
-
-<a href="gimplensfun-0.2.1-setup.exe">gimplensfun-0.2.1-setup.exe</a> (1.9 MB)<br />
-
-Windows version is known to require an up to date GIMP with minimum version 2.6.10.
+GimpLensfun also runs on Windows, but I could not succeed to compile it with the current GIMP version 2.8. If you have experience with GIMP and plugin compilation on Windows your help is appreciated! 
 
 
 #### Sources ####
@@ -68,7 +64,7 @@ Unzip the archive:
 Binaries can then be found under gimplensfun-0.x/bin/linux/. 
 Select the corresponding architecture for your system (i386/amd64) and copy
 the binary file "gimplensfun" to your GIMP plugin folder.
-Usually this is located at "/home/USER/.gimp2.6/plug-ins/".
+Usually this is located at "/home/USER/.gimp-2.8/plug-ins/".
 Afterwards you need to restart GIMP to detect the new plugin.
 
 #### From Source
