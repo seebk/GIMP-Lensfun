@@ -34,14 +34,14 @@
 
 ;AppId - only used with new-style installs; should be unique
 #define APP_ID="GIMP-Lensfun-Plugin"
-#define VERSION="0.2.2"
+#define VERSION="0.2.3"
 
 [Setup]
 AppName=Lensfun plug-in for GIMP
-AppVerName=GimpLensfun plugin 0.2.2
-AppPublisherURL=http://lensfun.sebastiankraft.net/
-AppSupportURL=http://lensfun.sebastiankraft.net/
-AppUpdatesURL=http://lensfun.sebastiankraft.net/
+AppVerName=GimpLensfun plugin 0.2.3
+AppPublisherURL=http://seebk.github.io/GIMP-Lensfun/
+AppSupportURL=http://seebk.github.io/GIMP-Lensfun/
+AppUpdatesURL=http://seebk.github.io/GIMP-Lensfun/
 DefaultDirName={code:GetGimpDir|{pf}\GIMP 2}
 ;WizardImageFile=big.bmp
 ;WizardImageBackColor=$ffffff
