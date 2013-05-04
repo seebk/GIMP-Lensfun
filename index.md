@@ -41,6 +41,7 @@ It autodetects your camera, lens type and corresponding parameters from the EXIF
 #### Linux ####
 
 Some distributions already include a package or there are third party repositories with the most up-to-date version.
+
 * <a href="https://launchpad.net/~otto-kesselgulasch/+archive/gimp" target="_blank">Ubuntu Launchapd PPA</a>
 * ...
 
@@ -50,7 +51,9 @@ Alternatively the following package includes the sources and also a pre-compiled
 #### Windows ####
 
 Finally there is an installer for windows again. Although it worked for me I would rate it as experimental. It directly writes into the GIMP install directory. There is no separate uninstaller, instead GIMP-Lensfun is removed when you uninstall GIMP.
+
 <a href="http://dl.bintray.com/content/seebk/GIMP-Lensfun/gimplensfun-0.2.3.tar.gz?direct">gimplensfun-0.2.3-setup.exe</a> (1.5 MB)
+
 You should use the offical GIMP 2.8.4 build from <a href="http://gimp-win.sourceforge.net/stable.html" target="_blank">http://gimp-win.sourceforge.net/stable.html</a>.
 
 
