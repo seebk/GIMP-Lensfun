@@ -1,5 +1,11 @@
 Changes:
 
+0.2.3
+#######################################
+- mostly cleanups and small fixes
+- TCA correction had no effect in previous releases,
+  should work now
+
 0.2.2
 #######################################
 - Lanczos interpolation is now used instead of bilinear 
