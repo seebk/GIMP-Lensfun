@@ -11,8 +11,8 @@ Summary:        Gimp plugin to correct lens distortion
 
 Group:          Applications/Multimedia
 License:        GPLv3
-URL:            http://lensfun.sebastiankraft.net/
-Source0:        http://lensfun.sebastiankraft.net/%{name}-%{version}.tar.gz
+URL:            http://seebk.github.io/GIMP-Lensfun/
+Source0:        http://dl.bintray.com/content/seebk/GIMP-Lensfun/%{name}-%{version}.tar.gz?direct
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:  gimp-devel >= 2.0
