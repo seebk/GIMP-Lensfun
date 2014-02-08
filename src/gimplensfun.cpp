@@ -1222,30 +1222,41 @@ run (const gchar*   name,
 
     imageID = param[1].data.d_drawable;
 
+    if (DEBUG) g_print ("Loading database...");
+    //Load lensfun database
+    ldb = lf_db_new ();
+    ldb->Load ();
+
+    // read exif data
+    const gchar *filename = gimp_image_get_filename(imageID);
+    if (DEBUG) g_print ("Image file path: %s\n", filename);
+
+    if ((filename == NULL) || (read_opts_from_exif(filename) != 0)) {
+	    loadSettings();
+    }
+
     run_mode = GimpRunMode(param[0].data.d_int32);
     if (run_mode == GIMP_RUN_INTERACTIVE)
     {
-        if (DEBUG) g_print ("Loading database...");
-        //Load lensfun database
-        ldb = lf_db_new ();
-        ldb->Load ();
-
-        // read exif data
-        const gchar *filename = gimp_image_get_filename(imageID);
-        if (DEBUG) g_print ("Image file path: %s\n", filename);
-
-        if ((filename == NULL) || (read_opts_from_exif(filename) != 0)) {
-            loadSettings();
-        }
-
-        if (DEBUG) g_print ("Creating dialog...\n");
-        /* Display the dialog */
-        if (create_dialog_window (drawable)) {
-            process_image(drawable);
-        }
-
-        storeSettings();
-
-        lf_db_destroy(ldb);
+	    if (DEBUG) g_print ("Creating dialog...\n");
+	    /* Display the dialog */
+	    if (create_dialog_window (drawable)) {
+		    process_image(drawable);
+	    }
+    } 
+    else 
+    {
+	    /* If run_mode is non-interactive, we use the configuration
+	     * from read_opts_from_exif. If that fails, we use the stored settings
+	     * (loadSettings()), e.g. the settings that have been made in the last 
+	     * interactive use of the plugin. One day, all settings should be 
+	     * available as arguments in non-interactive mode.
+	     */
+	    process_image(drawable);
     }
+
+    storeSettings();
+
+    lf_db_destroy(ldb);
+
 }
