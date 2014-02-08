@@ -18,13 +18,7 @@
  You should have received a copy of the GNU General Public
  License along with GimpLensfun. If not, see
  http://www.gnu.org/licenses/.
-
-###################################################################
-CHANGES:
-
-22.10.2011 - OpenMP parallelization
-20.10.2011 - Windows compatibility
-
+ 
 */
 
 #include <stdio.h>
