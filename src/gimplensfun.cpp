@@ -40,7 +40,7 @@ CHANGES:
 #include <exiv2/image.hpp>
 #include <exiv2/exif.hpp>
 
-#define VERSIONSTR "0.2.3"
+#define VERSIONSTR "0.2.4-dev"
 
 
 #ifndef DEBUG
