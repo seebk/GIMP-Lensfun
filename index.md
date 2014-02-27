@@ -46,13 +46,13 @@ Some distributions already include a package or there are third party repositori
 * ...
 
 Alternatively the following package includes the sources and also a pre-compiled 32/64-bit binary.
-<a href="http://dl.bintray.com/content/seebk/GIMP-Lensfun/gimplensfun-0.2.3.tar.gz?direct">gimplensfun-0.2.3.tar.gz</a> (66 kB)
+<a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.3/gimplensfun-0.2.3.tar.gz">gimplensfun-0.2.3.tar.gz</a> (66 kB)
 
 #### Windows ####
 
 Finally there is an installer for windows again. Although it worked for me I would rate it as experimental. It directly writes into the GIMP install directory. There is no separate uninstaller, instead GIMP-Lensfun is removed when you uninstall GIMP.
 
-<a href="http://dl.bintray.com/content/seebk/GIMP-Lensfun/gimplensfun-0.2.3-setup.exe?direct">gimplensfun-0.2.3-setup.exe</a> (1.5 MB)
+<a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.3/gimplensfun-0.2.3-2-setup.exe">gimplensfun-0.2.3-2-setup.exe</a> (1.5 MB)
 
 You should use it with an offical GIMP 2.8 build from <a href="http://www.gimp.org/downloads/" target="_blank">http://www.gimp.org/downloads/</a>.
 
