@@ -114,12 +114,12 @@ files located under /usr/share/lensfun.
 If your lens/camera combination is not part of the database that's no
 problem: Measuring the correction parameters is easy and can be
 done by yourself. Just follow  
-<a href="http://lensfun.berlios.de/lens-calibration/lens-calibration.html" target="_blank">this tutorial</a> 
+<a href="http://lensfun.berlios.de/calibration/" target="_blank">this tutorial</a> 
 on the lensfun
 homepage. <br />
 Afterwards please email the lens profile to mail(at)sebastiankraft.net and I will add it to the database.<br />
 
-<a href="lenslist.html" target="_blank">List with supported lenses</a><br />
+<a href="http://lensfun.berlios.de/lenslist/" target="_blank">List with supported lenses</a><br />
 
 ### Contact
 For contact please send an email to
