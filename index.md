@@ -54,7 +54,7 @@ Finally there is an installer for windows again. Although it worked for me I wou
 
 <a href="http://dl.bintray.com/content/seebk/GIMP-Lensfun/gimplensfun-0.2.3-setup.exe?direct">gimplensfun-0.2.3-setup.exe</a> (1.5 MB)
 
-You should use the offical GIMP 2.8.4 build from <a href="http://gimp-win.sourceforge.net/stable.html" target="_blank">http://gimp-win.sourceforge.net/stable.html</a>.
+You should use it with an offical GIMP 2.8 build from <a href="http://www.gimp.org/downloads/" target="_blank">http://www.gimp.org/downloads/</a>.
 
 
 #### Sources ####
@@ -64,13 +64,15 @@ Sources are available from github:
 
 ### Install
 
+#### Linux
+
 #### Pre-compiled binary
 
 Unzip the archive:
 <div class="code">&gt;$ tar -xvzf gimplensfun-0.x.tar.gz</div>
 Binaries can then be found under gimplensfun-0.x/bin/linux/. 
 Select the corresponding architecture for your system (i386/amd64) and copy
-the binary file "gimplensfun" to your GIMP plugin folder.
+the binary file "gimp-lensfun" to your GIMP plugin folder.
 Usually this is located at "/home/USER/.gimp-2.8/plug-ins/".
 Afterwards you need to restart GIMP to detect the new plugin.
 
@@ -102,14 +104,14 @@ plugins folder. Normally you find this at "/home/USER/.gimp-2.8/plug-ins/".
 You need to restart GIMP to detect the new plugin.
 
 
-###Supported Cameras/Lenses
+### Supported Cameras/Lenses
 
 Wether your camera/lens combination is supported depends on
 the database that comes with the lensfun library installed on your
 computer. Lensfun usually reads the distortion parameters from xml
 files located under /usr/share/lensfun.
 
-If your lens/camera combination is not part of the database it's no
+If your lens/camera combination is not part of the database that's no
 problem: Measuring the correction parameters is easy and can be
 done by yourself. Just follow  
 <a href="http://lensfun.berlios.de/lens-calibration/lens-calibration.html" target="_blank">this tutorial</a> 
