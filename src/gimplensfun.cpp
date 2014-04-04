@@ -352,20 +352,24 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
             return;
 
     // try to match maker with predefined list
+    int iNumMakers = 0;
     for (int i = 0; CameraMakers[i].compare("NULL")!=0; i++)
     {
         if (StrCompare(CameraMakers[i], sNewMake)==0) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), i);
             iCurrMakerID = i;
         }
+        iNumMakers++;
     }
 
-    // return if no maker has been identified
-    if (iCurrMakerID==-1)
-        return;
-
-    // store cam maker
-    sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID];
+    if (iCurrMakerID>=0)
+        sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID];
+    else {
+        gtk_combo_box_append_text( GTK_COMBO_BOX(maker_combo), sNewMake.c_str());
+        gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), iNumMakers);
+        iNumMakers++;
+        sLensfunParameters.CamMaker = sNewMake;
+    }
 
     // clear camera/lens combobox
     store = gtk_combo_box_get_model( GTK_COMBO_BOX(camera_combo) );
@@ -374,7 +378,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
 
     // get all cameras from maker out of database
-    cameras = ldb->FindCamerasExt (CameraMakers[iCurrMakerID].c_str(), NULL, LF_SEARCH_LOOSE );
+    cameras = ldb->FindCamerasExt (sLensfunParameters.CamMaker.c_str(), NULL, LF_SEARCH_LOOSE );
     if (cameras) {
         for (int i=0; cameras [i]; i++){
             vCameraList.push_back(string(lf_mlstr_get(cameras[i]->Model)));
