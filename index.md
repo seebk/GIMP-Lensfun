@@ -7,7 +7,7 @@ layout: default
 
 ### About
 GimpLensfun is a <a href="http://www.gimp.org" target=_blank">Gimp</a> plugin to correct lens distortion
-using the <a href="http://lensfun.berlios.de/" target="_blank">lensfun</a> library and database. 
+using the <a href="http://lensfun.sourceforge.net/" target="_blank">lensfun</a> library and database. 
 
 Move mouse over the example image to see the effect after lens correction.  
 This image has been taken using a Fuji F200EXR compact camera in wide
@@ -114,12 +114,12 @@ files located under /usr/share/lensfun.
 If your lens/camera combination is not part of the database that's no
 problem: Measuring the correction parameters is easy and can be
 done by yourself. Just follow  
-<a href="http://lensfun.berlios.de/calibration/" target="_blank">this tutorial</a> 
+<a href="http://lensfun.sourceforge.net/calibration/" target="_blank">this tutorial</a> 
 on the lensfun
 homepage. <br />
 Afterwards please email the lens profile to mail(at)sebastiankraft.net and I will add it to the database.<br />
 
-<a href="http://lensfun.berlios.de/lenslist/" target="_blank">List with supported lenses</a><br />
+<a href="http://lensfun.sourceforge.net/lenslist/" target="_blank">List with supported lenses</a><br />
 
 ### Contact
 For contact please send an email to
