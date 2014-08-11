@@ -881,6 +881,12 @@ static void process_image (GimpDrawable *drawable) {
     guchar *ImgBuffer;
     guchar *ImgBufferOut;
 
+    if ((sLensfunParameters.CamMaker.length()==0) ||
+        (sLensfunParameters.Camera.length()==0) ||
+        (sLensfunParameters.Lens.length()==0)) {
+            return;
+    }
+
     #ifdef POSIX
     struct timespec profiling_start, profiling_stop;
     #endif
