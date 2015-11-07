@@ -752,7 +752,7 @@ inline float Lanczos(float x)
     if ( (x<FLT_MIN) && (x>-FLT_MIN) )
         return 1.0f;
 
-    if ( (x >= cLanczosWidth) && (x <= (-1)*cLanczosWidth) )
+    if ( (x >= cLanczosWidth) || (x <= (-1)*cLanczosWidth) )
         return 0.0f;
 
     float xpi = x * static_cast<float>(M_PI);
