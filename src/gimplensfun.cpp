@@ -34,7 +34,7 @@
 #include <exiv2/image.hpp>
 #include <exiv2/exif.hpp>
 
-#define VERSIONSTR "0.2.4-dev"
+#define VERSIONSTR "0.2.4"
 
 
 #ifndef DEBUG
