@@ -1,5 +1,11 @@
 Changes:
 
+0.2.4
+#######################################
+- basic support for non interactive mode
+- avoid crash when camera or lens is not found in the database
+- support for makers which are not in the pre-defined list
+
 0.2.3
 #######################################
 - mostly cleanups and small fixes
