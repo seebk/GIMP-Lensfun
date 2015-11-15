@@ -268,6 +268,7 @@ unsigned long long int timespec2llu(struct timespec *ts) {
 
 //####################################################################
 // Helper functions for printing debug output
+#if DEBUG
 static void PrintMount (const lfMount *mount)
 {
     g_print ("Mount: %s\n", lf_mlstr_get (mount->Name));
@@ -325,6 +326,7 @@ static void PrintLenses (const lfLens **lenses)
     else
         g_print ("\t- failed\n");
 }
+#endif
 //--------------------------------------------------------------------
 
 
