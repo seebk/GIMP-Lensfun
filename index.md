@@ -36,46 +36,23 @@ It autodetects your camera, lens type and corresponding parameters from the EXIF
 {% endfor %}
 
 
-### Download
+### Installation
 
 #### Linux ####
 
-Some distributions already include a package or there are third party repositories with the most up-to-date version.
-
-* <a href="https://launchpad.net/~otto-kesselgulasch/+archive/gimp" target="_blank">Ubuntu Launchapd PPA</a>
-* ...
-
-Alternatively the following package includes the sources and also a pre-compiled 32/64-bit binary.
-<a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.3/gimplensfun-0.2.3.tar.gz">gimplensfun-0.2.3.tar.gz</a> (66 kB)
+Most distributions already include a package, check your package manager.
 
 #### Windows ####
 
 Finally there is an installer for windows again. Although it worked for me I would rate it as experimental. It directly writes into the GIMP install directory. There is no separate uninstaller, instead GIMP-Lensfun is removed when you uninstall GIMP. It is compatible with the offical GIMP 2.8 build from <a href="http://www.gimp.org/downloads/" target="_blank">http://www.gimp.org/downloads/</a> but may work with other builds, too.
 
-* Official release: <a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.3/gimplensfun-0.2.3-2-setup.exe">gimplensfun-0.2.3-2-setup.exe</a> (1.5 MB)
-* Development preview with updated lensfun database: <a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.4-dev/gimplensfun-0.2.4-dev-setup.exe">gimplensfun-0.2.4-dev-setup.exe</a> (1.8 MB)
+<a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.4/gimplensfun-0.2.4-setup.exe">gimplensfun-0.2.4-setup.exe</a> (1.8 MB)
 
 
-#### Sources ####
+#### From Sources ####
 
 Sources are available from github:
 <a target="_blank" href="https://github.com/seebk/GIMP-Lensfun">https://github.com/seebk/GIMP-Lensfun</a>
-
-### Install
-
-#### Linux
-
-#### Pre-compiled binary
-
-Unzip the archive:
-<div class="code">&gt;$ tar -xvzf gimplensfun-0.x.tar.gz</div>
-Binaries can then be found under gimplensfun-0.x/bin/linux/. 
-Select the corresponding architecture for your system (i386/amd64) and copy
-the binary file "gimp-lensfun" to your GIMP plugin folder.
-Usually this is located at "/home/USER/.gimp-2.8/plug-ins/".
-Afterwards you need to restart GIMP to detect the new plugin.
-
-#### From Source
 
 Dependencies: libgimp2.0, libexiv2, liblensfun
 
