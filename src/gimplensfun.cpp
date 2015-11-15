@@ -27,7 +27,7 @@
 #include <vector>
 #include <float.h>
 
-#include <lensfun.h>
+#include <lensfun/lensfun.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
@@ -1227,8 +1227,12 @@ run (const gchar*   name,
 
     if (DEBUG) g_print ("Loading database...");
     //Load lensfun database
-    ldb = lf_db_new ();
-    ldb->Load ();
+    ldb = new lfDatabase ();
+    if (ldb->Load () != LF_NO_ERROR) {
+        if (DEBUG) g_print ("failed!\n");
+    } else {
+        if (DEBUG) g_print ("OK\n");
+    }
 
     // read exif data
     const gchar *filename = gimp_image_get_filename(imageID);
@@ -1260,6 +1264,6 @@ run (const gchar*   name,
 
     storeSettings();
 
-    lf_db_destroy(ldb);
+    ldb->Destroy();
 
 }
