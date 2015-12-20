@@ -14,4 +14,6 @@ Changes:
 __Please note that windows package is experimental and we cannot give any support on that platform!__
 If there is anybody out there who is willing to take over maintenance of an official windows installer please contact us.
 
+__EDIT 2015/12/20 The windows installer has been updated. The previous version did not properly load the database.__
+
 <a target="_blank" href="https://github.com/seebk/GIMP-Lensfun/releases/tag/0.2.4">Download at GitHub</a>

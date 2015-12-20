@@ -46,7 +46,7 @@ Most distributions already include a package, check your package manager.
 
 Finally there is an installer for windows again. Although it worked for me I would rate it as experimental. It directly writes into the GIMP install directory. There is no separate uninstaller, instead GIMP-Lensfun is removed when you uninstall GIMP. It is compatible with the offical GIMP 2.8 build from <a href="http://www.gimp.org/downloads/" target="_blank">http://www.gimp.org/downloads/</a> but may work with other builds, too.
 
-<a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.4/gimplensfun-0.2.4-setup.exe">gimplensfun-0.2.4-setup.exe</a> (1.8 MB)
+<a href="https://github.com/seebk/GIMP-Lensfun/releases/download/0.2.4/gimplensfun-0.2.4-2-setup.exe">gimplensfun-0.2.4-2-setup.exe</a> (1.8 MB)
 
 
 #### From Sources ####
