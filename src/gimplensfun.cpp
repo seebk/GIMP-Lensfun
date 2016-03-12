@@ -946,7 +946,7 @@ static void process_image (GimpDrawable *drawable) {
     }
 
     //init lensfun modifier
-    lfModifier *mod = lfModifier::Create (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
+    lfModifier *mod = new lfModifier (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
     mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
                          sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
                          sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
@@ -996,7 +996,7 @@ static void process_image (GimpDrawable *drawable) {
         g_free(UndistCoord);
     }
 
-    lf_free(mod);
+    delete mod;
 
     #ifdef POSIX
     if (DEBUG) {
@@ -1266,6 +1266,5 @@ run (const gchar*   name,
 
     storeSettings();
 
-    ldb->Destroy();
-
+    delete ldb;
 }
