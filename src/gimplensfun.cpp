@@ -1107,7 +1107,7 @@ static int read_opts_from_exif(const char *filename) {
         MakerNoteKey = "Exif.OlympusEq.LensType";
     }
     if ((CamMaker.find("sony"))!=string::npos) {
-        //MakerNoteKey = "Exif.Sony1.LensID";
+        MakerNoteKey = "Exif.Photo.LensModel";
     }
 
     //Decode Lens ID
