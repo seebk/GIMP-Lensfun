@@ -1,5 +1,5 @@
 ---
-title:GimpLensfun v0.1.1
+title: GimpLensfun v0.1.1
 layout: default
 ---
 
