@@ -6,7 +6,7 @@ layout: default
 # GimpLensfun
 
 ### About
-GimpLensfun is a <a href="http://www.gimp.org" target=_blank">Gimp</a> plugin to correct lens distortion
+GimpLensfun is a <a href="http://www.gimp.org" target="_blank">Gimp</a> plugin to correct lens distortion
 using the <a href="http://lensfun.sourceforge.net/" target="_blank">lensfun</a> library and database. 
 
 Move mouse over the example image to see the effect after lens correction.  
