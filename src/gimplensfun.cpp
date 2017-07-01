@@ -1088,13 +1088,13 @@ static int read_opts_from_exif(const char *filename) {
     if ((CamMaker.find("pentax"))!=string::npos) {
         MakerNoteKey = "Exif.Pentax.LensType";
     }
-    if ((CamMaker.find("canon"))!=string::npos) {
+    else if ((CamMaker.find("canon"))!=string::npos) {
         MakerNoteKey = "Exif.CanonCs.LensType";
     }
-    if ((CamMaker.find("minolta"))!=string::npos) {
+    else if ((CamMaker.find("minolta"))!=string::npos) {
         MakerNoteKey = "Exif.Minolta.LensID";
     }
-    if ((CamMaker.find("nikon"))!=string::npos) {
+    else if ((CamMaker.find("nikon"))!=string::npos) {
         MakerNoteKey = "Exif.NikonLd3.LensIDNumber";
         if (exifData[MakerNoteKey].toString().size()==0) {
             MakerNoteKey = "Exif.NikonLd2.LensIDNumber";
@@ -1103,10 +1103,11 @@ static int read_opts_from_exif(const char *filename) {
             MakerNoteKey = "Exif.NikonLd1.LensIDNumber";
         }
     }
-    if ((CamMaker.find("olympus"))!=string::npos) {
+    else if ((CamMaker.find("olympus"))!=string::npos) {
         MakerNoteKey = "Exif.OlympusEq.LensType";
     }
-    if ((CamMaker.find("sony"))!=string::npos) {
+    else {
+        //Use default lens model tag for all other makers
         MakerNoteKey = "Exif.Photo.LensModel";
     }
 
