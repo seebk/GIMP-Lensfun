@@ -86,6 +86,7 @@ const string    CameraMakers[] = {
     "Canon",
     "Casio",
     "Fujifilm",
+    "GoPro",
     "Kodak",
     "Konica",
     "Leica",
