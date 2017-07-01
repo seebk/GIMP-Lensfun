@@ -189,18 +189,18 @@ static void  query (void)
     {
         {
             GIMP_PDB_INT32,
-            "run-mode",
-            "Run mode"
+            (char *)"run-mode",
+            (char *)"Run mode"
         },
         {
             GIMP_PDB_IMAGE,
-            "image",
-            "Input image"
+            (char *)"image",
+            (char *)"Input image"
         },
         {
             GIMP_PDB_DRAWABLE,
-            "drawable",
-            "Input drawable"
+            (char *)"drawable",
+            (char *)"Input drawable"
         }
     };
 
