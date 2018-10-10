@@ -34,7 +34,7 @@
 #include <exiv2/exif.hpp>
 #include <gexiv2/gexiv2.h>
 
-#define VERSIONSTR "0.2.5-dev"
+#define VERSION "0.2.5-dev"
 
 #ifndef DEBUG
 #define DEBUG false
@@ -119,7 +119,7 @@ typedef struct
     lfLensType TargetGeom;
 } MyLensfunOpts;
 //--------------------------------------------------------------------
-static MyLensfunOpts sLensfunParameters =
+static MyLensfunOpts lensfun_params =
 {
     LF_MODIFY_DISTORTION,
     false,
@@ -153,7 +153,7 @@ typedef struct
     lfLensType TargetGeom;
 } MyLensfunOptStorage;
 //--------------------------------------------------------------------
-static MyLensfunOptStorage sLensfunParameterStorage =
+static MyLensfunOptStorage lensfun_param_storage =
 {
     LF_MODIFY_DISTORTION,
     false,
@@ -345,9 +345,9 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     int iCurrCameraID   = -1;
     int iCurrLensId     = -1;
 
-    sLensfunParameters.CamMaker.clear();
-    sLensfunParameters.Camera.clear();
-    sLensfunParameters.Lens.clear();
+    lensfun_params.CamMaker.clear();
+    lensfun_params.Camera.clear();
+    lensfun_params.Lens.clear();
 
     if (sNewMake.empty()==true)
             return;
@@ -364,12 +364,12 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     }
 
     if (iCurrMakerID>=0)
-        sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID];
+        lensfun_params.CamMaker = CameraMakers[iCurrMakerID];
     else {
         gtk_combo_box_append_text( GTK_COMBO_BOX(maker_combo), sNewMake.c_str());
         gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), iNumMakers);
         iNumMakers++;
-        sLensfunParameters.CamMaker = sNewMake;
+        lensfun_params.CamMaker = sNewMake;
     }
 
     // clear camera/lens combobox
@@ -379,7 +379,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
 
     // get all cameras from maker out of database
-    cameras = ldb->FindCamerasExt (sLensfunParameters.CamMaker.c_str(), NULL, LF_SEARCH_LOOSE );
+    cameras = ldb->FindCamerasExt (lensfun_params.CamMaker.c_str(), NULL, LF_SEARCH_LOOSE );
     if (cameras) {
         for (int i=0; cameras [i]; i++){
             vCameraList.push_back(string(lf_mlstr_get(cameras[i]->Model)));
@@ -395,7 +395,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
         // set to active if model matches current camera
         if ((!sNewCamera.empty()) && (StrCompare(sNewCamera, vCameraList[i])==0)) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(camera_combo), i);
-            sLensfunParameters.Camera = sNewCamera;
+            lensfun_params.Camera = sNewCamera;
         }
 
         if (StrCompare(string(lf_mlstr_get(cameras[i]->Model)), sNewCamera)==0)
@@ -428,7 +428,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
         // set active if lens matches current lens model
         if ((!sNewLens.empty()) && (StrCompare(sNewLens, vLensList[i])==0)) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(lens_combo), i);
-            sLensfunParameters.Lens = sNewLens;
+            lensfun_params.Lens = sNewLens;
         }
 
         if (StrCompare(string(lf_mlstr_get(lenses[i]->Model)), sNewLens)==0)
@@ -496,45 +496,45 @@ static void
 focal_changed( GtkComboBox *combo,
                gpointer     data )
 {
-    sLensfunParameters.Focal = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
+    lensfun_params.Focal = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
 }
 //--------------------------------------------------------------------
 static void
 aperture_changed( GtkComboBox *combo,
                gpointer     data )
 {
-    sLensfunParameters.Aperture = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
+    lensfun_params.Aperture = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
 }
 //--------------------------------------------------------------------
 static void
 scalecheck_changed( GtkCheckButton *togglebutn,
                     gpointer     data )
 {
-    sLensfunParameters.Scale = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(togglebutn));
+    lensfun_params.Scale = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(togglebutn));
 }
 //--------------------------------------------------------------------
 static void
 modify_changed( GtkCheckButton *togglebutn,
                     gpointer     data )
 {
-    sLensfunParameters.ModifyFlags = 0;
+    lensfun_params.ModifyFlags = 0;
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrDistortion))
         && GTK_WIDGET_SENSITIVE(CorrDistortion))
-        sLensfunParameters.ModifyFlags |= LF_MODIFY_DISTORTION;
+        lensfun_params.ModifyFlags |= LF_MODIFY_DISTORTION;
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrTCA))
         && GTK_WIDGET_SENSITIVE(CorrTCA))
-        sLensfunParameters.ModifyFlags |= LF_MODIFY_TCA;
+        lensfun_params.ModifyFlags |= LF_MODIFY_TCA;
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrVignetting))
         && GTK_WIDGET_SENSITIVE(CorrVignetting))
-        sLensfunParameters.ModifyFlags |= LF_MODIFY_VIGNETTING;
+        lensfun_params.ModifyFlags |= LF_MODIFY_VIGNETTING;
 }//--------------------------------------------------------------------
 
 
 //####################################################################
 // Create gtk dialog window
-static gboolean create_dialog_window (GimpDrawable *drawable)
+static gboolean create_dialog_window ()
 {
     GtkWidget *dialog;
     GtkWidget *main_vbox;
@@ -555,7 +555,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
 
     gimp_ui_init ("mylensfun", FALSE);
 
-    dialog = gimp_dialog_new ("GIMP-Lensfun (v" VERSIONSTR ")", "mylensfun",
+    dialog = gimp_dialog_new ("GIMP-Lensfun (v" VERSION ")", "mylensfun",
                               NULL, GTK_DIALOG_MODAL ,
                               gimp_standard_help_func, "plug-in-lensfun",
                               GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -631,7 +631,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_widget_show (focal_label);
     gtk_table_attach_defaults(GTK_TABLE(table), focal_label, 0,1,iTableRow, iTableRow+1 );
 
-    spinbutton_adj = gtk_adjustment_new (sLensfunParameters.Focal, 0, 5000, 0.1, 0, 0);
+    spinbutton_adj = gtk_adjustment_new (lensfun_params.Focal, 0, 5000, 0.1, 0, 0);
     spinbutton = gtk_spin_button_new (GTK_ADJUSTMENT (spinbutton_adj), 2, 1);
     gtk_widget_show (spinbutton);
     gtk_table_attach_defaults(GTK_TABLE(table), spinbutton, 1,2,iTableRow, iTableRow+1 );
@@ -645,7 +645,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_widget_show (focal_label);
     gtk_table_attach_defaults(GTK_TABLE(table), aperture_label, 0,1,iTableRow, iTableRow+1 );
 
-    spinbutton_aperture_adj = gtk_adjustment_new (sLensfunParameters.Aperture, 0, 128, 0.1, 0, 0);
+    spinbutton_aperture_adj = gtk_adjustment_new (lensfun_params.Aperture, 0, 128, 0.1, 0, 0);
     spinbutton_aperture = gtk_spin_button_new (GTK_ADJUSTMENT (spinbutton_aperture_adj), 2, 1);
     gtk_widget_show (spinbutton_aperture);
     gtk_table_attach_defaults(GTK_TABLE(table), spinbutton_aperture, 1,2,iTableRow, iTableRow+1 );
@@ -678,7 +678,7 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     scalecheck = gtk_check_button_new_with_label("Scale to fit");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
     gtk_widget_show (scalecheck);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scalecheck), !sLensfunParameters.Scale);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scalecheck), !lensfun_params.Scale);
     gtk_table_attach_defaults(GTK_TABLE(table2), scalecheck, 1,2,iTableRow, iTableRow+1 );
     iTableRow++;
 
@@ -712,9 +712,9 @@ static gboolean create_dialog_window (GimpDrawable *drawable)
     gtk_widget_show_all(table2);
 
     // try to set combo boxes to exif
-    dialog_set_cboxes(sLensfunParameters.CamMaker,
-                      sLensfunParameters.Camera,
-                      sLensfunParameters.Lens);
+    dialog_set_cboxes(lensfun_params.CamMaker,
+                      lensfun_params.Camera,
+                      lensfun_params.Lens);
 
     // connect signals
     g_signal_connect( G_OBJECT( maker_combo ), "changed",
@@ -875,70 +875,68 @@ inline int InterpolateNearest(guchar *ImgBuffer, gint w, gint h, gint channels, 
 
 //####################################################################
 // Processing
-static void process_image (GimpDrawable *drawable) {
-    gint         channels;
-    gint         x1, y1, x2, y2, imgwidth, imgheight;
+static void process_image (gint32 drawable_id) {
+    GeglBuffer *r_buffer, *w_buffer;
+    const Babl *drawable_fmt;
+    gint        drawable_bpp;
 
-    GimpPixelRgn rgn_in, rgn_out;
-    guchar *ImgBuffer;
-    guchar *ImgBufferOut;
+    gint drawable_w, drawable_h;
 
-    if ((sLensfunParameters.CamMaker.length()==0) ||
-        (sLensfunParameters.Camera.length()==0) ||
-        (sLensfunParameters.Lens.length()==0)) {
-            return;
-    }
+    guchar *img_buf;
+    guchar *img_buf_out;
+
+  r_buffer = gimp_drawable_get_buffer (drawable_id);
+  w_buffer = gimp_drawable_get_shadow_buffer (drawable_id);
+
+  drawable_w = gegl_buffer_get_width (r_buffer);
+  drawable_h = gegl_buffer_get_height (r_buffer);
+
+  drawable_fmt = babl_format ("R'G'B' u8");
+
+  drawable_bpp = babl_format_get_bytes_per_pixel (drawable_fmt);
+
+  if ((lensfun_params.CamMaker.length () == 0) ||
+      (lensfun_params.Camera.length () == 0) ||
+      (lensfun_params.Lens.length () == 0))
+  {
+    return;
+  }
 
     #ifdef POSIX
     struct timespec profiling_start, profiling_stop;
     #endif
 
-    // get image size
-    gimp_drawable_mask_bounds (drawable->drawable_id,
-                               &x1, &y1,
-                               &x2, &y2);
-    imgwidth = x2-x1;
-    imgheight = y2-y1;
-
-    // get number of channels
-    channels = gimp_drawable_bpp (drawable->drawable_id);
-
-    gimp_pixel_rgn_init (&rgn_in,
-                         drawable,
-                         x1, y1,
-                         imgwidth, imgheight,
-                         FALSE, FALSE);
-    gimp_pixel_rgn_init (&rgn_out,
-                         drawable,
-                         x1, y1,
-                         imgwidth, imgheight,
-                         TRUE, TRUE);
-
-    //Init input and output buffer
-    ImgBuffer = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
-    ImgBufferOut = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
+    // Init input and output buffer
+    img_buf     = g_new (guchar, drawable_bpp * drawable_w * drawable_h);
+    img_buf_out = g_new (guchar, drawable_bpp * drawable_w * drawable_h);
     InitInterpolation(GL_INTERPOL_LZ);
 
     // Copy pixel data from GIMP to internal buffer
-    gimp_pixel_rgn_get_rect (&rgn_in, ImgBuffer, x1, y1, imgwidth, imgheight);
+    gegl_buffer_get (r_buffer,
+                     GEGL_RECTANGLE (0, 0, drawable_w, drawable_h),
+                     1.0,
+                     drawable_fmt,
+                     img_buf,
+                     GEGL_AUTO_ROWSTRIDE,
+                     GEGL_ABYSS_NONE);
 
-    if (sLensfunParameters.Scale<1) {
-        sLensfunParameters.ModifyFlags |= LF_MODIFY_SCALE;
+    if (lensfun_params.Scale<1) {
+        lensfun_params.ModifyFlags |= LF_MODIFY_SCALE;
     }
 
-    const lfCamera **cameras = ldb->FindCamerasExt (sLensfunParameters.CamMaker.c_str(), sLensfunParameters.Camera.c_str());
-    sLensfunParameters.Crop = cameras[0]->CropFactor;
+    const lfCamera **cameras = ldb->FindCamerasExt (lensfun_params.CamMaker.c_str(), lensfun_params.Camera.c_str());
+    lensfun_params.Crop = cameras[0]->CropFactor;
 
-    const lfLens **lenses = ldb->FindLenses (cameras[0], NULL, sLensfunParameters.Lens.c_str());
+    const lfLens **lenses = ldb->FindLenses (cameras[0], nullptr, lensfun_params.Lens.c_str());
 
     if (DEBUG) {
         g_print("\nApplied settings:\n");
         g_print("\tCamera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
         g_print("\tLens: %s\n", lenses[0]->Model);
-        g_print("\tFocal Length: %f\n", sLensfunParameters.Focal);
-        g_print("\tF-Stop: %f\n", sLensfunParameters.Aperture);
-        g_print("\tCrop Factor: %f\n", sLensfunParameters.Crop);
-        g_print("\tScale: %f\n", sLensfunParameters.Scale);
+        g_print("\tFocal Length: %f\n", lensfun_params.Focal);
+        g_print("\tF-Stop: %f\n", lensfun_params.Aperture);
+        g_print("\tCrop Factor: %f\n", lensfun_params.Crop);
+        g_print("\tScale: %f\n", lensfun_params.Scale);
 
         #ifdef POSIX
         clock_gettime(CLOCK_REALTIME, &profiling_start);
@@ -946,38 +944,38 @@ static void process_image (GimpDrawable *drawable) {
     }
 
     //init lensfun modifier
-    lfModifier *mod = new lfModifier (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
-    mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
-                         sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
-                         sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
+    auto *mod = new lfModifier (lenses[0], lensfun_params.Crop, drawable_w, drawable_h);
+    mod->Initialize (  lenses[0], LF_PF_U8, lensfun_params.Focal,
+                         lensfun_params.Aperture, lensfun_params.Distance, lensfun_params.Scale, lensfun_params.TargetGeom,
+                         lensfun_params.ModifyFlags, lensfun_params.Inverse);
 
-    int iRowCount = 0;
+    gint iRowCount = 0;
     #pragma omp parallel
     {
         // buffer containing undistorted coordinates for one row
-        float *UndistCoord = g_new (float, imgwidth*2*channels);
+        gfloat *UndistCoord = g_new (gfloat, drawable_w * 2 * drawable_bpp);
 
         //main loop for processing, iterate through rows
         #pragma omp for
-        for (int i = 0; i < imgheight; i++)
+        for (gint i = 0; i < drawable_h; i++)
         {
-            mod->ApplyColorModification( &ImgBuffer[(channels*imgwidth*i)],
-                                        0, i, imgwidth, 1,
+            mod->ApplyColorModification( &img_buf[(drawable_bpp * drawable_w * i)],
+                                        0, i, drawable_w, 1,
                                         LF_CR_3(RED, GREEN, BLUE),
-                                        channels*imgwidth);
+                                        drawable_bpp * drawable_w);
 
-            mod->ApplySubpixelGeometryDistortion (0, i, imgwidth, 1, UndistCoord);
+            mod->ApplySubpixelGeometryDistortion (0, i, drawable_w, 1, UndistCoord);
 
             float*  UndistIter = UndistCoord;
-            guchar *OutputBuffer = &ImgBufferOut[channels*imgwidth*i];
+            guchar *OutputBuffer = &img_buf_out[drawable_bpp * drawable_w * i];
             //iterate through subpixels in one row
-            for (int j = 0; j < imgwidth*channels; j += channels)
+            for (int j = 0; j < drawable_w * drawable_bpp; j += drawable_bpp)
             {
-                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
+                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_bpp, UndistIter [0], UndistIter [1], 0);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
+                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_bpp, UndistIter [2], UndistIter [3], 1);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
+                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_bpp, UndistIter [4], UndistIter [5], 2);
                 OutputBuffer++;
 
                 // move pointer to next pixel
@@ -989,7 +987,7 @@ static void process_image (GimpDrawable *drawable) {
             if (iRowCount % 200 == 0) {
                  #pragma omp critical
                  {
-                 gimp_progress_update ((gdouble) (iRowCount - y1) / (gdouble) (imgheight));
+                 gimp_progress_update ((gdouble) iRowCount / (gdouble) (drawable_h));
                  }
             }
         }
@@ -1001,25 +999,29 @@ static void process_image (GimpDrawable *drawable) {
     #ifdef POSIX
     if (DEBUG) {
         clock_gettime(CLOCK_REALTIME, &profiling_stop);
-        unsigned long long int time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
-        g_print("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
+        gulong time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
+        g_print("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, drawable_w * drawable_h, time_diff / (drawable_w * drawable_h));
     }
     #endif
 
-    //write data back to gimp
-    gimp_pixel_rgn_set_rect (&rgn_out, ImgBufferOut, x1, y1, imgwidth, imgheight);
+    // Write data back to gimp
+    gegl_buffer_set (w_buffer,
+                     GEGL_RECTANGLE (0, 0, drawable_w, drawable_h),
+                     0,
+                     drawable_fmt,
+                     img_buf_out,
+                     GEGL_AUTO_ROWSTRIDE);
 
-    gimp_drawable_flush (drawable);
-    gimp_drawable_merge_shadow (drawable->drawable_id, TRUE);
-    gimp_drawable_update (drawable->drawable_id,
-                          x1, y1,
-                          imgwidth, imgheight);
+    // Free memory
+    g_object_unref (r_buffer);
+    g_object_unref (w_buffer);
+
+    gimp_drawable_merge_shadow (drawable_id, true);
+    gimp_drawable_update (drawable_id, 0, 0, drawable_w, drawable_h);
     gimp_displays_flush ();
-    gimp_drawable_detach (drawable);
 
-    // free memory
-    g_free(ImgBufferOut);
-    g_free(ImgBuffer);
+    g_free (img_buf_out);
+    g_free (img_buf);
 
     lf_free(lenses);
     lf_free(cameras);
@@ -1101,11 +1103,11 @@ static gint read_opts_from_exif(gint32 image_id) {
     cameras = ldb->FindCameras (exif_data["Exif.Image.Make"].toString().c_str(), exif_data["Exif.Image.Model"].toString().c_str());
     if (cameras) {
         camera = cameras [0];
-        sLensfunParameters.Crop = camera->CropFactor;
-        sLensfunParameters.Camera = string(lf_mlstr_get(camera->Model));
-        sLensfunParameters.CamMaker = string(lf_mlstr_get(camera->Maker));
+        lensfun_params.Crop = camera->CropFactor;
+        lensfun_params.Camera = string(lf_mlstr_get(camera->Model));
+        lensfun_params.CamMaker = string(lf_mlstr_get(camera->Maker));
     }  else {
-        sLensfunParameters.CamMaker = exif_data["Exif.Image.Make"].toString();
+        lensfun_params.CamMaker = exif_data["Exif.Image.Make"].toString();
     }
     //PrintCameras(cameras, ldb);
 
@@ -1179,23 +1181,23 @@ static gint read_opts_from_exif(gint32 image_id) {
         }
         if (lenses) {
             lens = lenses[0];
-            sLensfunParameters.Lens = string(lf_mlstr_get(lens->Model));
+            lensfun_params.Lens = string(lf_mlstr_get(lens->Model));
         }
         lf_free (lenses);
     }
     lf_free (cameras);
 
-    sLensfunParameters.Focal = exif_data["Exif.Photo.FocalLength"].toFloat();
-    sLensfunParameters.Aperture = exif_data["Exif.Photo.FNumber"].toFloat();
+    lensfun_params.Focal = exif_data["Exif.Photo.FocalLength"].toFloat();
+    lensfun_params.Aperture = exif_data["Exif.Photo.FNumber"].toFloat();
 
     if (DEBUG) {
         g_print("\nExif Data:\n");
-        g_print("\tCamera: %s, %s\n", sLensfunParameters.CamMaker.c_str(), sLensfunParameters.Camera.c_str());
-        g_print("\tLens: %s\n", sLensfunParameters.Lens.c_str());
-        g_print("\tFocal Length: %f\n", sLensfunParameters.Focal);
-        g_print("\tF-Stop: %f\n", sLensfunParameters.Aperture);
-        g_print("\tCrop Factor: %f\n", sLensfunParameters.Crop);
-        g_print("\tScale: %f\n", sLensfunParameters.Scale);
+        g_print("\tCamera: %s, %s\n", lensfun_params.CamMaker.c_str(), lensfun_params.Camera.c_str());
+        g_print("\tLens: %s\n", lensfun_params.Lens.c_str());
+        g_print("\tFocal Length: %f\n", lensfun_params.Focal);
+        g_print("\tF-Stop: %f\n", lensfun_params.Aperture);
+        g_print("\tCrop Factor: %f\n", lensfun_params.Crop);
+        g_print("\tScale: %f\n", lensfun_params.Scale);
     }
 
     return 0;
@@ -1207,40 +1209,40 @@ static gint read_opts_from_exif(gint32 image_id) {
 // store and load parameters and settings to/from gimp_data_storage
 static void loadSettings() {
 
-    gimp_get_data ("plug-in-gimplensfun", &sLensfunParameterStorage);
+    gimp_get_data ("plug-in-gimplensfun", &lensfun_param_storage);
 
-    sLensfunParameters.ModifyFlags = sLensfunParameterStorage.ModifyFlags;
-    sLensfunParameters.Inverse  = sLensfunParameterStorage.Inverse;
-    if (strlen(sLensfunParameterStorage.Camera)>0)
-        sLensfunParameters.Camera  = std::string(sLensfunParameterStorage.Camera);
-    if (strlen(sLensfunParameterStorage.CamMaker)>0)
-        sLensfunParameters.CamMaker  = std::string(sLensfunParameterStorage.CamMaker);
-    if (strlen(sLensfunParameterStorage.Lens)>0)
-        sLensfunParameters.Lens  = std::string(sLensfunParameterStorage.Lens);
-    sLensfunParameters.Scale    = sLensfunParameterStorage.Scale;
-    sLensfunParameters.Crop     = sLensfunParameterStorage.Crop;
-    sLensfunParameters.Focal    = sLensfunParameterStorage.Focal;
-    sLensfunParameters.Aperture = sLensfunParameterStorage.Aperture;
-    sLensfunParameters.Distance = sLensfunParameterStorage.Distance;
-    sLensfunParameters.TargetGeom = sLensfunParameterStorage.TargetGeom;
+    lensfun_param_storage.ModifyFlags = lensfun_param_storage.ModifyFlags;
+    lensfun_param_storage.Inverse  = lensfun_param_storage.Inverse;
+    if (strlen(lensfun_param_storage.Camera)>0)
+        lensfun_params.Camera  = std::string(lensfun_param_storage.Camera);
+    if (strlen(lensfun_param_storage.CamMaker)>0)
+        lensfun_params.CamMaker  = std::string(lensfun_param_storage.CamMaker);
+    if (strlen(lensfun_param_storage.Lens)>0)
+        lensfun_params.Lens  = std::string(lensfun_param_storage.Lens);
+    lensfun_param_storage.Scale    = lensfun_param_storage.Scale;
+    lensfun_param_storage.Crop     = lensfun_param_storage.Crop;
+    lensfun_param_storage.Focal    = lensfun_param_storage.Focal;
+    lensfun_param_storage.Aperture = lensfun_param_storage.Aperture;
+    lensfun_param_storage.Distance = lensfun_param_storage.Distance;
+    lensfun_param_storage.TargetGeom = lensfun_param_storage.TargetGeom;
 }
 //--------------------------------------------------------------------
 
 static void storeSettings() {
 
-    sLensfunParameterStorage.ModifyFlags = sLensfunParameters.ModifyFlags;
-    sLensfunParameterStorage.Inverse  = sLensfunParameters.Inverse;
-    strcpy( sLensfunParameterStorage.Camera, sLensfunParameters.Camera.c_str() );
-    strcpy( sLensfunParameterStorage.CamMaker, sLensfunParameters.CamMaker.c_str() );
-    strcpy( sLensfunParameterStorage.Lens, sLensfunParameters.Lens.c_str() );
-    sLensfunParameterStorage.Scale    = sLensfunParameters.Scale;
-    sLensfunParameterStorage.Crop     = sLensfunParameters.Crop;
-    sLensfunParameterStorage.Focal    = sLensfunParameters.Focal;
-    sLensfunParameterStorage.Aperture = sLensfunParameters.Aperture;
-    sLensfunParameterStorage.Distance = sLensfunParameters.Distance;
-    sLensfunParameterStorage.TargetGeom = sLensfunParameters.TargetGeom;
+    lensfun_param_storage.ModifyFlags = lensfun_param_storage.ModifyFlags;
+    lensfun_param_storage.Inverse  = lensfun_param_storage.Inverse;
+    strcpy( lensfun_param_storage.Camera, lensfun_params.Camera.c_str() );
+    strcpy( lensfun_param_storage.CamMaker, lensfun_params.CamMaker.c_str() );
+    strcpy( lensfun_param_storage.Lens, lensfun_params.Lens.c_str() );
+    lensfun_param_storage.Scale    = lensfun_param_storage.Scale;
+    lensfun_param_storage.Crop     = lensfun_param_storage.Crop;
+    lensfun_param_storage.Focal    = lensfun_param_storage.Focal;
+    lensfun_param_storage.Aperture = lensfun_param_storage.Aperture;
+    lensfun_param_storage.Distance = lensfun_param_storage.Distance;
+    lensfun_param_storage.TargetGeom = lensfun_param_storage.TargetGeom;
 
-    gimp_set_data ("plug-in-gimplensfun", &sLensfunParameterStorage, sizeof (sLensfunParameterStorage));
+    gimp_set_data ("plug-in-gimplensfun", &lensfun_param_storage, sizeof (lensfun_param_storage));
 }
 //--------------------------------------------------------------------
 
@@ -1255,25 +1257,27 @@ run (const gchar*   name,
      GimpParam**    return_vals)
 {
     static GimpParam    values[1];
-    GimpPDBStatusType   status = GIMP_PDB_SUCCESS;
     gint32              image_id;
     GimpRunMode         run_mode;
-    GimpDrawable        *drawable;
+    gint32              drawable_id;
+
+    gegl_init (nullptr, nullptr);
 
     /* Setting mandatory output values */
     *nreturn_vals = 1;
     *return_vals  = values;
 
-    values[0].type = GIMP_PDB_STATUS;
-    values[0].data.d_status = status;
+    run_mode = (GimpRunMode) param[0].data.d_int32;
 
-    drawable = gimp_drawable_get (param[2].data.d_drawable);
+    values[0].type = GIMP_PDB_STATUS;
+    values[0].data.d_status = GIMP_PDB_SUCCESS;
 
     gimp_progress_init ("Lensfun correction...");
 
-    image_id = param[1].data.d_drawable;
+    image_id    = param[1].data.d_drawable;
+    drawable_id = param[2].data.d_drawable;
 
-    if (DEBUG) g_print ("Loading database...");
+    if (DEBUG) g_print ("Loading database... ");
     //Load lensfun database
     ldb = new lfDatabase ();
     if (ldb->Load () != LF_NO_ERROR) {
@@ -1287,13 +1291,12 @@ run (const gchar*   name,
     if (read_opts_from_exif (image_id) != 0)
       loadSettings();
 
-    run_mode = GimpRunMode(param[0].data.d_int32);
     if (run_mode == GIMP_RUN_INTERACTIVE)
     {
 	    if (DEBUG) g_print ("Creating dialog...\n");
 	    /* Display the dialog */
-	    if (create_dialog_window (drawable)) {
-		    process_image(drawable);
+	    if (create_dialog_window ()) {
+		    process_image(drawable_id);
 	    }
     } 
     else 
@@ -1304,10 +1307,11 @@ run (const gchar*   name,
 	     * interactive use of the plugin. One day, all settings should be 
 	     * available as arguments in non-interactive mode.
 	     */
-	    process_image(drawable);
+	    process_image(drawable_id);
     }
 
     storeSettings();
+    gegl_exit ();
 
     delete ldb;
 }
