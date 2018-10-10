@@ -57,13 +57,15 @@
 #ifndef LUT_H_
 #define LUT_H_
 
+#include <glib/gtypes.h>
+
 // bit representations of flags
 #define LUT_CLIP_BELOW 1
 #define LUT_CLIP_ABOVE 2
 
-#define LUTf LUT<float>
-#define LUTi LUT<int>
-#define LUTu LUT<unsigned int>
+#define LUTf LUT<gfloat>
+#define LUTi LUT<gint>
+#define LUTu LUT<guint>
 
 #include <cstring>
 
@@ -71,18 +73,18 @@ template<typename T>
 class LUT {
 private:
         // list of variables ordered to improve cache speed
-        unsigned int maxs; 
+        guint maxs;
         T * data;
-        unsigned int clip, size, owner;
+        guint clip, size, owner;
 public:
-        LUT(int s, int flags = 0xfffffff) {
+        explicit LUT (guint s, guint flags = 0xfffffff) {
                 clip = flags;
                 data = new T[s];
                 owner = 1;
                 size = s;
                 maxs=size-2;
         }
-        void operator ()(int s, int flags = 0xfffffff) {
+        void operator () (guint s, guint flags = 0xfffffff) {
                 if (owner&&data)
                         delete[] data;
                 clip = flags;
@@ -92,18 +94,18 @@ public:
                 maxs=size-2;
         }
 
-        LUT(int s, T * source) {
+        LUT (guint s, T * source) {
                 data = new T[s];
                 owner = 1;
                 size = s;
                 maxs=size-2;
-                for (int i = 0; i < s; i++) {
+                for (gint i = 0; i < s; i++) {
                         data[i] = source[i];
                 }
         }
 
-        LUT(void) {
-                data = NULL;
+        LUT() {
+                data = nullptr;
                 owner = 1;
                 size = 0;
                 maxs=0;
@@ -119,9 +121,9 @@ public:
               if (rhs.size>this->size)
               {
                 delete [] this->data;
-                this->data=NULL;
+                this->data=nullptr;
               }
-              if (this->data==NULL) this->data=new T[rhs.size];
+              if (this->data==nullptr) this->data=new T[rhs.size];
               this->clip=rhs.clip;
               this->owner=1;
               memcpy(this->data,rhs.data,rhs.size*sizeof(T));
@@ -132,8 +134,8 @@ public:
             return *this;
           }
         // use with integer indices
-        T& operator[](int index) {
-                if (((unsigned int)index)<size) return data[index];
+        T& operator[](gint index) {
+                if (((guint) index)<size) return data[index];
                 else
                 {
                         if (index < 0)
@@ -144,9 +146,9 @@ public:
                 
         }
         // use with float indices
-        T operator[](float index) {
-                int idx = (int)index;  // don't use floor! The difference in negative space is no problems here
-                if (((unsigned int)idx) > maxs) {
+        T operator[](gfloat index) {
+                auto idx = (gint) index;  // Don't use floor! The difference in negative space is no problems here
+                if (((guint)idx) > maxs) {
                         if (idx<0)
                         {
                                 if (clip & LUT_CLIP_BELOW)
@@ -160,18 +162,18 @@ public:
                                 idx =maxs;
                         }
                 }
-                float diff = index - (float) idx;
+                gfloat diff = index - (gfloat) idx;
                 T p1 = data[idx];
                 T p2 = data[idx + 1]-p1;
                 return (p1 + p2*diff);
         }
 
-        operator bool (void)
+        explicit operator bool ()
                 {
-                        return size>0;
+                        return size > 0;
                 }
 
-        void clear(void) {
+        void clear () {
                 memset(data, 0, size * sizeof(T));
         }
 };

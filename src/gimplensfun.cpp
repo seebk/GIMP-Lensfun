@@ -25,12 +25,10 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include <cfloat>
 
 #include <lensfun/lensfun.h>
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
-
 #include <exiv2/exif.hpp>
 #include <gexiv2/gexiv2.h>
 
@@ -44,39 +42,41 @@
 
 using namespace std;
 
-//####################################################################
+// ############################################################################
 // Function declarations
-static void query (void);
-static void run   (const gchar      *name,
-                   gint              nparams,
-                   const GimpParam  *param,
-                   gint             *nreturn_vals,
-                   GimpParam       **return_vals);
 
-static gboolean create_dialog_window (GimpDrawable *drawable);
+static void
+query ();
+
+static void
+run (const gchar      *name,
+     gint              nparams,
+     const GimpParam  *param,
+     gint             *nreturn_vals,
+     GimpParam       **return_vals);
+
 //--------------------------------------------------------------------
 
-
-//####################################################################
+// ############################################################################
 // Global variables
 GtkWidget *camera_combo, *maker_combo, *lens_combo;
 GtkWidget *CorrVignetting, *CorrTCA, *CorrDistortion;
 lfDatabase *ldb;
 bool bComboBoxLock = false;
-//--------------------------------------------------------------------
 
 
-//####################################################################
-// interpolation parameters
-const int cLanczosWidth = 2;
-const int cLanczosTableRes = 256;
-LUT<float> LanczosLUT (cLanczosWidth * 2 * cLanczosTableRes + 1);
+// ############################################################################
+// Interpolation parameters
+const gint cLanczosWidth = 2;
+const gint cLanczosTableRes = 256;
+LUT<gfloat> LanczosLUT (cLanczosWidth * 2 * cLanczosTableRes + 1);
 
-typedef enum GL_INTERPOL {
-    GL_INTERPOL_NN,		// Nearest Neighbour
-    GL_INTERPOL_BL,		// Bilinear
-    GL_INTERPOL_LZ		// Lanczos
-} glInterpolationType;
+typedef enum GL_INTERPOL
+{
+  GL_INTERPOL_NN, // Nearest Neighbour
+  GL_INTERPOL_BL, // Bilinear
+  GL_INTERPOL_LZ  // Lanczos
+} GlInterpolationType;
 
 
 //####################################################################
@@ -97,7 +97,7 @@ const string    CameraMakers[] = {
     "Samsung",
     "Sigma",
     "Sony",
-    "NULL"
+    "nullptr"
 };
 //--------------------------------------------------------------------
 
@@ -106,16 +106,16 @@ const string    CameraMakers[] = {
 // struct for holding camera/lens info and parameters
 typedef struct
 {
-    int ModifyFlags;
+    gint ModifyFlags;
     bool Inverse;
-    std::string Camera;
-    std::string CamMaker;
-    std::string Lens;
-    float Scale;
-    float Crop;
-    float Focal;
-    float Aperture;
-    float Distance;
+    string Camera;
+    string CamMaker;
+    string Lens;
+    gfloat Scale;
+    gfloat Crop;
+    gfloat Focal;
+    gfloat Aperture;
+    gfloat Distance;
     lfLensType TargetGeom;
 } MyLensfunOpts;
 //--------------------------------------------------------------------
@@ -140,16 +140,16 @@ static MyLensfunOpts lensfun_params =
 // struct for storing camera/lens info and parameters
 typedef struct
 {
-    int ModifyFlags;
+    gint ModifyFlags;
     bool Inverse;
-    char Camera[255];
-    char CamMaker[255];
-    char Lens[255];
-    float Scale;
-    float Crop;
-    float Focal;
-    float Aperture;
-    float Distance;
+    gchar Camera[255];
+    gchar CamMaker[255];
+    gchar Lens[255];
+    gfloat Scale;
+    gfloat Crop;
+    gfloat Focal;
+    gfloat Aperture;
+    gfloat Distance;
     lfLensType TargetGeom;
 } MyLensfunOptStorage;
 //--------------------------------------------------------------------
@@ -172,8 +172,8 @@ static MyLensfunOptStorage lensfun_param_storage =
 // GIMP Plugin
 GimpPlugInInfo PLUG_IN_INFO =
 {
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     query,
     run
 };
@@ -183,24 +183,24 @@ MAIN()
 
 //####################################################################
 // query() function
-static void  query (void)
+static void  query ()
 {
     static GimpParamDef args[] =
     {
         {
             GIMP_PDB_INT32,
-            (char *)"run-mode",
-            (char *)"Run mode"
+            (gchar *)"run-mode",
+            (gchar *)"Run mode"
         },
         {
             GIMP_PDB_IMAGE,
-            (char *)"image",
-            (char *)"Input image"
+            (gchar *)"image",
+            (gchar *)"Input image"
         },
         {
             GIMP_PDB_DRAWABLE,
-            (char *)"drawable",
-            (char *)"Input drawable"
+            (gchar *)"drawable",
+            (gchar *)"Input drawable"
         }
     };
 
@@ -215,7 +215,7 @@ static void  query (void)
         "RGB",
         GIMP_PLUGIN,
         G_N_ELEMENTS (args), 0,
-        args, NULL);
+        args, nullptr);
 
     gimp_plugin_menu_register ("plug-in-lensfun",
                                "<Image>/Filters/Enhance");
@@ -226,23 +226,29 @@ static void  query (void)
 //####################################################################
 // Some helper functions
 
-// Round float to integer value
-int roundfloat2int(float d)
+// Round gfloat to gint value
+gint round_float_to_gint (gfloat d)
 {
-    return d<0?d-.5:d+.5;
+    return (gint) (d < 0 ? d - .5 : d + .5);
+}
+
+inline guchar
+round_float_to_guchar (gfloat d)
+{
+    return (guchar) (d >= 0 ? MIN (d + .5, 255.0f) : 0.0f);
 }
 //--------------------------------------------------------------------
-void StrReplace(std::string& str, const std::string& old, const std::string& newstr)
+void StrReplace(string& str, const string& old, const string& newstr)
 {
     size_t pos = 0;
-    while ((pos = str.find(old, pos)) != std::string::npos)
+    while ((pos = str.find(old, pos)) != string::npos)
     {
         str.replace(pos, old.length(), newstr);
         pos += newstr.length();
     }
 }
 //--------------------------------------------------------------------
-int StrCompare(const std::string& str1, const std::string& str2, bool CaseSensitive = false)
+gint StrCompare(const string& str1, const string& str2, bool CaseSensitive = false)
 {
     string s1 = str1;
     string s2 = str2;
@@ -258,8 +264,8 @@ int StrCompare(const std::string& str1, const std::string& str2, bool CaseSensit
 }
 //--------------------------------------------------------------------
 #ifdef POSIX
-unsigned long long int timespec2llu(struct timespec *ts) {
-    return (unsigned long long int) ( ((unsigned long long int)ts->tv_sec * 1000000000) + ts->tv_nsec);
+gulong timespec2llu(struct timespec *ts) {
+    return (gulong) ( ((gulong)ts->tv_sec * 1000000000) + ts->tv_nsec);
 }
 #endif
 //--------------------------------------------------------------------
@@ -273,7 +279,7 @@ static void PrintMount (const lfMount *mount)
 {
     g_print ("Mount: %s\n", lf_mlstr_get (mount->Name));
     if (mount->Compat)
-        for (int j = 0; mount->Compat [j]; j++)
+        for (gint j = 0; mount->Compat [j]; j++)
             g_print ("\tCompat: %s\n", mount->Compat [j]);
 }
 //--------------------------------------------------------------------
@@ -299,14 +305,14 @@ static void PrintLens (const lfLens *lens)
     g_print ("\tAperture: %g-%g\n", lens->MinAperture, lens->MaxAperture);
     g_print ("\tCenter: %g,%g\n", lens->CenterX, lens->CenterY);
     if (lens->Mounts)
-        for (int j = 0; lens->Mounts [j]; j++)
+        for (gint j = 0; lens->Mounts [j]; j++)
             g_print ("\tMount: %s\n", lf_db_mount_name (ldb, lens->Mounts [j]));
 }
 //--------------------------------------------------------------------
 static void PrintCameras (const lfCamera **cameras)
 {
     if (cameras)
-        for (int i = 0; cameras [i]; i++)
+        for (gint i = 0; cameras [i]; i++)
         {
             g_print ("--- camera %d: ---\n", i + 1);
             PrintCamera (cameras [i]);
@@ -318,7 +324,7 @@ static void PrintCameras (const lfCamera **cameras)
 static void PrintLenses (const lfLens **lenses)
 {
     if (lenses)
-        for (int i = 0; lenses [i]; i++)
+        for (gint i = 0; lenses [i]; i++)
         {
             g_print ("--- lens %d, score %d: ---\n", i + 1, lenses [i]->Score);
             PrintLens (lenses [i]);
@@ -332,29 +338,31 @@ static void PrintLenses (const lfLens **lenses)
 
 //####################################################################
 // set dialog combo boxes to values
-static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLens) {
+static void dialog_set_cboxes(const string sNewMake,
+                              const string sNewCamera,
+                              const string sNewLens) {
 
     vector<string> vCameraList;
     vector<string> vLensList;
 
-    const lfCamera**    cameras     = NULL;
-    const lfLens**  lenses      = NULL;
-    GtkTreeModel*   store       = NULL;
+    const lfCamera**    cameras     = nullptr;
+    const lfLens**  lenses      = nullptr;
+    GtkTreeModel*   store       = nullptr;
 
-    int iCurrMakerID    = -1;
-    int iCurrCameraID   = -1;
-    int iCurrLensId     = -1;
+    gint iCurrMakerID    = -1;
+    gint iCurrCameraID   = -1;
+    gint iCurrLensId     = -1;
 
     lensfun_params.CamMaker.clear();
     lensfun_params.Camera.clear();
     lensfun_params.Lens.clear();
 
-    if (sNewMake.empty()==true)
+    if (sNewMake.empty())
             return;
 
     // try to match maker with predefined list
-    int iNumMakers = 0;
-    for (int i = 0; CameraMakers[i].compare("NULL")!=0; i++)
+    gint iNumMakers = 0;
+    for (gint i = 0; CameraMakers[i] != "nullptr"; i++)
     {
         if (StrCompare(CameraMakers[i], sNewMake)==0) {
             gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), i);
@@ -379,9 +387,9 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
 
     // get all cameras from maker out of database
-    cameras = ldb->FindCamerasExt (lensfun_params.CamMaker.c_str(), NULL, LF_SEARCH_LOOSE );
+    cameras = ldb->FindCamerasExt (lensfun_params.CamMaker.c_str(), nullptr, LF_SEARCH_LOOSE );
     if (cameras) {
-        for (int i=0; cameras [i]; i++){
+        for (gint i=0; cameras [i]; i++){
             vCameraList.push_back(string(lf_mlstr_get(cameras[i]->Model)));
         }
         sort(vCameraList.begin(), vCameraList.end());
@@ -389,7 +397,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
         return;
     }
 
-    for (unsigned int i=0; i<vCameraList.size(); i++)
+    for (guint i=0; i<vCameraList.size(); i++)
     {
         gtk_combo_box_append_text( GTK_COMBO_BOX( camera_combo ), vCameraList[i].c_str());
         // set to active if model matches current camera
@@ -410,10 +418,10 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
     }
 
     // find lenses for camera model
-    lenses = ldb->FindLenses (cameras[iCurrCameraID], NULL, NULL);
+    lenses = ldb->FindLenses (cameras[iCurrCameraID], nullptr, nullptr);
     if (lenses) {
         vLensList.clear();
-        for (int i = 0; lenses [i]; i++)
+        for (gint i = 0; lenses [i]; i++)
             vLensList.push_back(string(lf_mlstr_get(lenses[i]->Model)));
         sort(vLensList.begin(), vLensList.end());
     } else {
@@ -421,7 +429,7 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
         return;
     }
 
-    for (unsigned int i = 0; i<vLensList.size(); i++)
+    for (guint i = 0; i<vLensList.size(); i++)
     {
         gtk_combo_box_append_text( GTK_COMBO_BOX( lens_combo ), (vLensList[i]).c_str());
 
@@ -440,9 +448,9 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
 
     if (iCurrLensId >= 0)
     {
-        if (lenses[iCurrLensId]->CalibTCA != NULL)
+        if (lenses[iCurrLensId]->CalibTCA != nullptr)
             gtk_widget_set_sensitive(CorrTCA, true);
-        if (lenses[iCurrLensId]->CalibVignetting != NULL)
+        if (lenses[iCurrLensId]->CalibVignetting != nullptr)
             gtk_widget_set_sensitive(CorrVignetting, true);
     }
 
@@ -496,14 +504,14 @@ static void
 focal_changed( GtkComboBox *combo,
                gpointer     data )
 {
-    lensfun_params.Focal = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
+    lensfun_params.Focal = (gfloat) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
 }
 //--------------------------------------------------------------------
 static void
 aperture_changed( GtkComboBox *combo,
                gpointer     data )
 {
-    lensfun_params.Aperture = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
+    lensfun_params.Aperture = (gfloat) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
 }
 //--------------------------------------------------------------------
 static void
@@ -551,32 +559,32 @@ static gboolean create_dialog_window ()
     GtkWidget *table, *table2;
     gboolean   run;
 
-    gint       iTableRow = 0;
+    guint      iTableRow = 0;
 
-    gimp_ui_init ("mylensfun", FALSE);
+    gimp_ui_init ("mylensfun", false);
 
     dialog = gimp_dialog_new ("GIMP-Lensfun (v" VERSION ")", "mylensfun",
-                              NULL, GTK_DIALOG_MODAL ,
+                              nullptr, GTK_DIALOG_MODAL ,
                               gimp_standard_help_func, "plug-in-lensfun",
                               GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
                               GTK_STOCK_OK,     GTK_RESPONSE_OK,
-                              NULL);
+                              nullptr);
 
-    main_vbox = gtk_vbox_new (FALSE, 6);
+    main_vbox = gtk_vbox_new (false, 6);
     gtk_container_add (GTK_CONTAINER (GTK_DIALOG (dialog)->vbox), main_vbox);
     gtk_widget_show (main_vbox);
 
-    frame = gtk_frame_new (NULL);
+    frame = gtk_frame_new (nullptr);
     gtk_widget_show (frame);
-    gtk_box_pack_start (GTK_BOX (main_vbox), frame, TRUE, TRUE, 0);
+    gtk_box_pack_start (GTK_BOX (main_vbox), frame, true, true, 0);
     gtk_container_set_border_width (GTK_CONTAINER (frame), 6);
 
     frame_label = gtk_label_new ("Camera/Lens Parameters");
     gtk_widget_show (frame_label);
     gtk_frame_set_label_widget (GTK_FRAME (frame), frame_label);
-    gtk_label_set_use_markup (GTK_LABEL (frame_label), TRUE);
+    gtk_label_set_use_markup (GTK_LABEL (frame_label), true);
 
-    table = gtk_table_new(6, 2, TRUE);
+    table = gtk_table_new(6, 2, true);
     gtk_table_set_homogeneous(GTK_TABLE(table), false);
     gtk_table_set_row_spacings(GTK_TABLE(table), 2);
     gtk_table_set_col_spacings(GTK_TABLE(table), 2);
@@ -591,7 +599,7 @@ static gboolean create_dialog_window ()
     maker_combo = gtk_combo_box_new_text();
     gtk_widget_show (maker_combo);
 
-    for (int i = 0; StrCompare(CameraMakers[i], "NULL")!=0; i++)
+    for (gint i = 0; StrCompare(CameraMakers[i], "nullptr")!=0; i++)
     {
         gtk_combo_box_append_text( GTK_COMBO_BOX( maker_combo ), CameraMakers[i].c_str());
     }
@@ -637,7 +645,7 @@ static gboolean create_dialog_window ()
     gtk_table_attach_defaults(GTK_TABLE(table), spinbutton, 1,2,iTableRow, iTableRow+1 );
     iTableRow++;
 
-    gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton), TRUE);
+    gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton), true);
 
     // aperture
     aperture_label = gtk_label_new("Aperture:");
@@ -651,22 +659,22 @@ static gboolean create_dialog_window ()
     gtk_table_attach_defaults(GTK_TABLE(table), spinbutton_aperture, 1,2,iTableRow, iTableRow+1 );
     iTableRow++;
 
-    gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton_aperture), TRUE);
+    gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton_aperture), true);
 
     gtk_container_add (GTK_CONTAINER (frame), table);
     gtk_widget_show_all(table);
 
-    frame2 = gtk_frame_new (NULL);
+    frame2 = gtk_frame_new (nullptr);
     gtk_widget_show (frame2);
-    gtk_box_pack_start (GTK_BOX (main_vbox), frame2, TRUE, TRUE, 0);
+    gtk_box_pack_start (GTK_BOX (main_vbox), frame2, true, true, 0);
     gtk_container_set_border_width (GTK_CONTAINER (frame2), 6);
 
     frame_label2 = gtk_label_new ("Processing Parameters");
     gtk_widget_show (frame_label2);
     gtk_frame_set_label_widget (GTK_FRAME (frame2), frame_label2);
-    gtk_label_set_use_markup (GTK_LABEL (frame_label2), TRUE);
+    gtk_label_set_use_markup (GTK_LABEL (frame_label2), true);
 
-    table2 = gtk_table_new(6, 2, TRUE);
+    table2 = gtk_table_new(6, 2, true);
     gtk_table_set_homogeneous(GTK_TABLE(table2), false);
     gtk_table_set_row_spacings(GTK_TABLE(table2), 2);
     gtk_table_set_col_spacings(GTK_TABLE(table2), 2);
@@ -676,7 +684,7 @@ static gboolean create_dialog_window ()
 
     // scale to fit checkbox
     scalecheck = gtk_check_button_new_with_label("Scale to fit");
-    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
+    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), false);
     gtk_widget_show (scalecheck);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scalecheck), !lensfun_params.Scale);
     gtk_table_attach_defaults(GTK_TABLE(table2), scalecheck, 1,2,iTableRow, iTableRow+1 );
@@ -684,7 +692,7 @@ static gboolean create_dialog_window ()
 
     // enable distortion correction
     CorrDistortion = gtk_check_button_new_with_label("Distortion");
-    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
+    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), false);
     gtk_widget_show (CorrDistortion);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrDistortion), true);
     gtk_table_attach_defaults(GTK_TABLE(table2), CorrDistortion, 1,2,iTableRow, iTableRow+1 );
@@ -692,7 +700,7 @@ static gboolean create_dialog_window ()
 
     // enable vignetting correction
     CorrVignetting = gtk_check_button_new_with_label("Vignetting");
-    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
+    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), false);
     gtk_widget_show (CorrVignetting);
     gtk_widget_set_sensitive(CorrVignetting, false);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrVignetting), false);
@@ -701,7 +709,7 @@ static gboolean create_dialog_window ()
 
     // enable TCA correction
     CorrTCA = gtk_check_button_new_with_label("Chromatic Aberration");
-    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
+    //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), false);
     gtk_widget_show (CorrTCA);
     gtk_widget_set_sensitive(CorrTCA, false);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrTCA), false);
@@ -718,24 +726,24 @@ static gboolean create_dialog_window ()
 
     // connect signals
     g_signal_connect( G_OBJECT( maker_combo ), "changed",
-                      G_CALLBACK( maker_cb_changed ), NULL );
+                      G_CALLBACK( maker_cb_changed ), nullptr );
     g_signal_connect( G_OBJECT( camera_combo ), "changed",
-                      G_CALLBACK( camera_cb_changed ), NULL );
+                      G_CALLBACK( camera_cb_changed ), nullptr );
     g_signal_connect( G_OBJECT( lens_combo ), "changed",
-                      G_CALLBACK( lens_cb_changed ), NULL );
+                      G_CALLBACK( lens_cb_changed ), nullptr );
     g_signal_connect (spinbutton_adj, "value_changed",
                       G_CALLBACK (focal_changed), spinbutton_adj);
     g_signal_connect (spinbutton_aperture_adj, "value_changed",
                       G_CALLBACK (aperture_changed), spinbutton_aperture_adj);
 
     g_signal_connect( G_OBJECT( scalecheck ), "toggled",
-                      G_CALLBACK( scalecheck_changed ), NULL );
+                      G_CALLBACK( scalecheck_changed ), nullptr );
     g_signal_connect( G_OBJECT( CorrDistortion ), "toggled",
-                      G_CALLBACK( modify_changed ), NULL );
+                      G_CALLBACK( modify_changed ), nullptr );
     g_signal_connect( G_OBJECT( CorrTCA ), "toggled",
-                      G_CALLBACK( modify_changed ), NULL );
+                      G_CALLBACK( modify_changed ), nullptr );
     g_signal_connect( G_OBJECT( CorrVignetting ), "toggled",
-                      G_CALLBACK( modify_changed ), NULL );
+                      G_CALLBACK( modify_changed ), nullptr );
 
     // show and run
     gtk_widget_show (dialog);
@@ -749,7 +757,7 @@ static gboolean create_dialog_window ()
 
 //####################################################################
 // Interpolation functions
-inline float Lanczos(float x)
+inline gfloat Lanczos(gfloat x)
 {
     if ( (x<FLT_MIN) && (x>-FLT_MIN) )
         return 1.0f;
@@ -757,32 +765,38 @@ inline float Lanczos(float x)
     if ( (x >= cLanczosWidth) || (x <= (-1)*cLanczosWidth) )
         return 0.0f;
 
-    float xpi = x * static_cast<float>(M_PI);
+    gfloat xpi = x * static_cast<gfloat>(M_PI);
     return ( cLanczosWidth * sin(xpi) * sin(xpi/cLanczosWidth) ) / ( xpi*xpi );
 }
 //--------------------------------------------------------------------
-void InitInterpolation(glInterpolationType intType)
+void Initinterpolation (GlInterpolationType int_type)
 {
-    switch(intType) {
+    switch(int_type) {
         case GL_INTERPOL_NN: break;
         case GL_INTERPOL_BL: break;
         case GL_INTERPOL_LZ:
-                for (int i = -cLanczosWidth*cLanczosTableRes; i < cLanczosWidth*cLanczosTableRes; i++) {
-                    LanczosLUT[i + cLanczosWidth*cLanczosTableRes] = Lanczos(static_cast<float>(i)/static_cast<float>(cLanczosTableRes));
+                for (gint i = -cLanczosWidth*cLanczosTableRes; i < cLanczosWidth*cLanczosTableRes; i++) {
+                    LanczosLUT[i + cLanczosWidth*cLanczosTableRes] = Lanczos(static_cast<gfloat>(i)/static_cast<gfloat>(cLanczosTableRes));
                 }
 
                 break;
     }
 }
 //--------------------------------------------------------------------
-inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
+inline guchar interpolateLanczos (const guchar *ImgBuffer,
+                                  gint w,
+                                  gint h,
+                                  gint channels,
+                                  gfloat xpos,
+                                  gfloat ypos,
+                                  gint chan)
 {
 
-    int   xl   = int(xpos);
-    int   yl   = int(ypos);
-    float y    = 0.0f;
-    float norm = 0.0f;
-    float L    = 0.0f;
+    auto   xl   = gint(xpos);
+    auto   yl   = gint(ypos);
+    gfloat y    = 0.0f;
+    gfloat norm = 0.0f;
+    gfloat L    = 0.0f;
 
     // border checking
     if ((xl-cLanczosWidth+1 < 0) ||
@@ -794,41 +808,35 @@ inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, 
     }
 
     // convolve with lanczos kernel
-    for (int i = xl-cLanczosWidth+1; i < xl+cLanczosWidth; i++) {
-        for (int j = yl-cLanczosWidth+1; j < yl+cLanczosWidth; j++) {
-            L = LanczosLUT[ (xpos - static_cast<float>(i))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ]
-                   * LanczosLUT[ (ypos - static_cast<float>(j))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ];
-            // L = Lanczos(xpos - static_cast<float>(i))
-            //                   * Lanczos(ypos - static_cast<float>(j));
-            y += static_cast<float>(ImgBuffer[ (channels*w*j) + (i*channels) + chan ]) * L;
+    for (gint i = xl-cLanczosWidth+1; i < xl+cLanczosWidth; i++) {
+        for (gint j = yl-cLanczosWidth+1; j < yl+cLanczosWidth; j++) {
+            L = LanczosLUT[ (xpos - static_cast<gfloat>(i))*static_cast<gfloat>(cLanczosTableRes) + static_cast<gfloat>(cLanczosWidth*cLanczosTableRes) ]
+                   * LanczosLUT[ (ypos - static_cast<gfloat>(j))*static_cast<gfloat>(cLanczosTableRes) + static_cast<gfloat>(cLanczosWidth*cLanczosTableRes) ];
+            // L = Lanczos(xpos - static_cast<gfloat>(i))
+            //                   * Lanczos(ypos - static_cast<gfloat>(j));
+            y += static_cast<gfloat>(ImgBuffer[ (channels*w*j) + (i*channels) + chan ]) * L;
             norm += L;
         }
     }
     // normalize
     y = y / norm;
 
-    // clip
-    if (y>255)
-        y = 255;
-    if (y<0)
-        y = 0;
-
     // round to integer and return
-    return roundfloat2int(y);
+    return round_float_to_guchar (y);
 }
 //--------------------------------------------------------------------
-inline int InterpolateLinear(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
+inline gint interpolateLinear(const guchar *ImgBuffer, gint w, gint h, gint channels, gfloat xpos, gfloat ypos, gint chan)
 {
-    // interpolated values in x and y  direction
-    float   x1, x2, y;
+    // Interpolated values in x and y  direction
+    gfloat   x1, x2, y;
 
     // surrounding integer rounded coordinates
-    int     xl, xr, yu, yl;
+    gint     xl, xr, yu, yl;
 
-    xl = floor(xpos);
-    xr = ceil (xpos + 1e-10);
-    yu = floor(ypos);
-    yl = ceil (ypos + 1e-10);
+    xl = (gint) floor(xpos);
+    xr = (gint) ceil (xpos + 1e-10);
+    yu = (gint) floor(ypos);
+    yl = (gint) ceil (ypos + 1e-10);
 
     // border checking
     if ((xl < 0)  ||
@@ -840,23 +848,23 @@ inline int InterpolateLinear(guchar *ImgBuffer, gint w, gint h, gint channels, f
     }
 
 
-    float px1y1 = (float) ImgBuffer[ (channels*w*yu) + (xl*channels) + chan ];
-    float px1y2 = (float) ImgBuffer[ (channels*w*yl) + (xl*channels) + chan ];
-    float px2y1 = (float) ImgBuffer[ (channels*w*yu) + (xr*channels) + chan ];
-    float px2y2 = (float) ImgBuffer[ (channels*w*yl) + (xr*channels) + chan ];
+    auto px1y1 = (gfloat) ImgBuffer[ (channels*w*yu) + (xl*channels) + chan ];
+    auto px1y2 = (gfloat) ImgBuffer[ (channels*w*yl) + (xl*channels) + chan ];
+    auto px2y1 = (gfloat) ImgBuffer[ (channels*w*yu) + (xr*channels) + chan ];
+    auto px2y2 = (gfloat) ImgBuffer[ (channels*w*yl) + (xr*channels) + chan ];
 
-    x1 = (static_cast<float>(xr) - xpos)*px1y1 + (xpos - static_cast<float>(xl))*px2y1;
-    x2 = (static_cast<float>(xr) - xpos)*px1y2 + (xpos - static_cast<float>(xl))*px2y2;
+    x1 = (static_cast<gfloat>(xr) - xpos)*px1y1 + (xpos - static_cast<gfloat>(xl))*px2y1;
+    x2 = (static_cast<gfloat>(xr) - xpos)*px1y2 + (xpos - static_cast<gfloat>(xl))*px2y2;
 
-    y  = (ypos - static_cast<float>(yu))*x2    + (static_cast<float>(yl) - ypos)*x1;
+    y  = (ypos - static_cast<gfloat>(yu))*x2    + (static_cast<gfloat>(yl) - ypos)*x1;
 
-    return roundfloat2int(y);
+    return round_float_to_gint (y);
 }
 //--------------------------------------------------------------------
-inline int InterpolateNearest(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
+inline gint interpolateNearest(guchar *ImgBuffer, gint w, gint h, gint channels, gfloat xpos, gfloat ypos, gint chan)
 {
-    int x = roundfloat2int(xpos);
-    int y = roundfloat2int(ypos);
+    gint x = round_float_to_gint (xpos);
+    gint y = round_float_to_gint (ypos);
 
 
     // border checking
@@ -909,7 +917,7 @@ static void process_image (gint32 drawable_id) {
     // Init input and output buffer
     img_buf     = g_new (guchar, drawable_bpp * drawable_w * drawable_h);
     img_buf_out = g_new (guchar, drawable_bpp * drawable_w * drawable_h);
-    InitInterpolation(GL_INTERPOL_LZ);
+    Initinterpolation (GL_INTERPOL_LZ);
 
     // Copy pixel data from GIMP to internal buffer
     gegl_buffer_get (r_buffer,
@@ -966,16 +974,34 @@ static void process_image (gint32 drawable_id) {
 
             mod->ApplySubpixelGeometryDistortion (0, i, drawable_w, 1, UndistCoord);
 
-            float*  UndistIter = UndistCoord;
+            gfloat*  UndistIter = UndistCoord;
             guchar *OutputBuffer = &img_buf_out[drawable_bpp * drawable_w * i];
             //iterate through subpixels in one row
-            for (int j = 0; j < drawable_w * drawable_bpp; j += drawable_bpp)
+            for (gint j = 0; j < drawable_w * drawable_bpp; j += drawable_bpp)
             {
-                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_bpp, UndistIter [0], UndistIter [1], 0);
+                *OutputBuffer = interpolateLanczos (img_buf,
+                                                    drawable_w,
+                                                    drawable_h,
+                                                    drawable_bpp,
+                                                    UndistIter[0],
+                                                    UndistIter[1],
+                                                    0);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_bpp, UndistIter [2], UndistIter [3], 1);
+                *OutputBuffer = interpolateLanczos (img_buf,
+                                                    drawable_w,
+                                                    drawable_h,
+                                                    drawable_bpp,
+                                                    UndistIter[2],
+                                                    UndistIter[3],
+                                                    1);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_bpp, UndistIter [4], UndistIter [5], 2);
+                *OutputBuffer = interpolateLanczos (img_buf,
+                                                    drawable_w,
+                                                    drawable_h,
+                                                    drawable_bpp,
+                                                    UndistIter[4],
+                                                    UndistIter[5],
+                                                    2);
                 OutputBuffer++;
 
                 // move pointer to next pixel
@@ -1214,11 +1240,11 @@ static void loadSettings() {
     lensfun_param_storage.ModifyFlags = lensfun_param_storage.ModifyFlags;
     lensfun_param_storage.Inverse  = lensfun_param_storage.Inverse;
     if (strlen(lensfun_param_storage.Camera)>0)
-        lensfun_params.Camera  = std::string(lensfun_param_storage.Camera);
+        lensfun_params.Camera  = string(lensfun_param_storage.Camera);
     if (strlen(lensfun_param_storage.CamMaker)>0)
-        lensfun_params.CamMaker  = std::string(lensfun_param_storage.CamMaker);
+        lensfun_params.CamMaker  = string(lensfun_param_storage.CamMaker);
     if (strlen(lensfun_param_storage.Lens)>0)
-        lensfun_params.Lens  = std::string(lensfun_param_storage.Lens);
+        lensfun_params.Lens  = string(lensfun_param_storage.Lens);
     lensfun_param_storage.Scale    = lensfun_param_storage.Scale;
     lensfun_param_storage.Crop     = lensfun_param_storage.Crop;
     lensfun_param_storage.Focal    = lensfun_param_storage.Focal;
@@ -1304,7 +1330,7 @@ run (const gchar*   name,
 	    /* If run_mode is non-interactive, we use the configuration
 	     * from read_opts_from_exif. If that fails, we use the stored settings
 	     * (loadSettings()), e.g. the settings that have been made in the last 
-	     * interactive use of the plugin. One day, all settings should be 
+	     * interactive use of the plugin. One day, all settings should be
 	     * available as arguments in non-interactive mode.
 	     */
 	    process_image(drawable_id);
