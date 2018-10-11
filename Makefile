@@ -2,9 +2,9 @@
 # enable/disable debug mode
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
-    CXXFLAGS += -DDEBUG=1
+    CXXFLAGS += -DDEBUG=true
 else
-    CXXFLAGS += -DDEBUG=0
+    CXXFLAGS += -DDEBUG=false
 endif
 
 
@@ -14,8 +14,8 @@ CXXFLAGS += -O3 -Wall
 
 
 # project-specific flags
-EXTRA_CXXFLAGS += $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2)
-LDFLAGS += $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2) -lstdc++
+EXTRA_CXXFLAGS += $(shell gimptool-2.0 --cflags && pkg-config --cflags lensfun exiv2 gexiv2)
+LDFLAGS += $(shell gimptool-2.0 --libs && pkg-config --libs lensfun exiv2 gexiv2) -lstdc++
 
 
 # set some system dependent options
