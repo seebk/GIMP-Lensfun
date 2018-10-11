@@ -70,112 +70,130 @@
 #include <cstring>
 
 template<typename T>
-class LUT {
-private:
-        // list of variables ordered to improve cache speed
-        guint maxs;
-        T * data;
-        guint clip, size, owner;
-public:
-        explicit LUT (guint s, guint flags = 0xfffffff) {
-                clip = flags;
-                data = new T[s];
-                owner = 1;
-                size = s;
-                maxs=size-2;
-        }
-        void operator () (guint s, guint flags = 0xfffffff) {
-                if (owner&&data)
-                        delete[] data;
-                clip = flags;
-                data = new T[s];
-                owner = 1;
-                size = s;
-                maxs=size-2;
-        }
+class LUT
+{
+ private:
+  // List of variables ordered to improve cache speed
+  guint maxs;
+  T *data;
+  guint clip, size, owner;
+ public:
+  LUT (guint s, guint flags = 0xfffffff)
+  {
+    clip  = flags;
+    data  = new T[s];
+    owner = 1;
+    size  = s;
+    maxs  = size - 2;
+  }
+  void
+  operator() (guint s, guint flags = 0xfffffff)
+  {
+    if (owner && data)
+      delete[] data;
+    clip  = flags;
+    data  = new T[s];
+    owner = 1;
+    size  = s;
+    maxs  = size - 2;
+  }
 
-        LUT (guint s, T * source) {
-                data = new T[s];
-                owner = 1;
-                size = s;
-                maxs=size-2;
-                for (gint i = 0; i < s; i++) {
-                        data[i] = source[i];
-                }
-        }
+  LUT (guint s, T *source)
+  {
+    data  = new T[s];
+    owner = 1;
+    size  = s;
+    maxs  = size - 2;
+    for (gint i = 0; i < s; i++)
+    {
+      data[i] = source[i];
+    }
+  }
 
-        LUT() {
-                data = nullptr;
-                owner = 1;
-                size = 0;
-                maxs=0;
-        }
+  LUT ()
+  {
+    data  = nullptr;
+    owner = 1;
+    size  = 0;
+    maxs  = 0;
+  }
 
-        ~LUT() {
-                if (owner)
-                        delete[] data;
-        }
+  ~LUT ()
+  {
+    if (owner)
+      delete[] data;
+  }
 
-        LUT<T> & operator=(const LUT<T> &rhs) {
-            if (this != &rhs) {
-              if (rhs.size>this->size)
-              {
-                delete [] this->data;
-                this->data=nullptr;
-              }
-              if (this->data==nullptr) this->data=new T[rhs.size];
-              this->clip=rhs.clip;
-              this->owner=1;
-              memcpy(this->data,rhs.data,rhs.size*sizeof(T));
-              this->size=rhs.size;
-              this->maxs=this->size-2;
-            }
+  LUT<T> &
+  operator= (const LUT<T> &rhs)
+  {
+    if (this != &rhs)
+    {
+      if (rhs.size > this->size)
+      {
+        delete[] this->data;
+        this->data = nullptr;
+      }
+      if (this->data == nullptr) this->data = new T[rhs.size];
+      this->clip  = rhs.clip;
+      this->owner = 1;
+      memcpy (this->data, rhs.data, rhs.size * sizeof (T));
+      this->size = rhs.size;
+      this->maxs = this->size - 2;
+    }
 
-            return *this;
-          }
-        // use with integer indices
-        T& operator[](gint index) {
-                if (((guint) index)<size) return data[index];
-                else
-                {
-                        if (index < 0)
-                                return data[0];
-                        else
-                                return data[size - 1];
-                }
-                
-        }
-        // use with float indices
-        T operator[](gfloat index) {
-                auto idx = (gint) index;  // Don't use floor! The difference in negative space is no problems here
-                if (((guint)idx) > maxs) {
-                        if (idx<0)
-                        {
-                                if (clip & LUT_CLIP_BELOW)
-                                        return data[0];
-                                idx=0;
-                        }
-                        else
-                        {
-                                if (clip & LUT_CLIP_ABOVE)
-                                        return data[size - 1];
-                                idx =maxs;
-                        }
-                }
-                gfloat diff = index - (gfloat) idx;
-                T p1 = data[idx];
-                T p2 = data[idx + 1]-p1;
-                return (p1 + p2*diff);
-        }
+    return *this;
+  }
+  // Use with integer indices
+  T &
+  operator[] (gint index)
+  {
+    if (((guint) index) < size) return data[index];
+    else
+    {
+      if (index < 0)
+        return data[0];
+      else
+        return data[size - 1];
+    }
 
-        explicit operator bool ()
-                {
-                        return size > 0;
-                }
+  }
+  // Use with float indices
+  T
+  operator[] (gfloat index)
+  {
+    auto idx = (gint) index;  // Don't use floor! The difference in negative space is no problems here
+    if (((guint) idx) > maxs)
+    {
+      if (idx < 0)
+      {
+        if (clip & LUT_CLIP_BELOW)
+          return data[0];
+        idx = 0;
+      }
+      else
+      {
+        if (clip & LUT_CLIP_ABOVE)
+          return data[size - 1];
+        idx = maxs;
+      }
+    }
+    gfloat diff = index - (gfloat) idx;
+    T      p1   = data[idx];
+    T      p2   = data[idx + 1] - p1;
+    return (p1 + p2 * diff);
+  }
 
-        void clear () {
-                memset(data, 0, size * sizeof(T));
-        }
+  explicit operator bool ()
+  {
+    return size > 0;
+  }
+
+  void
+  clear ()
+  {
+    memset (data, 0, size * sizeof (T));
+  }
 };
 
 #endif /* LUT_H_ */
