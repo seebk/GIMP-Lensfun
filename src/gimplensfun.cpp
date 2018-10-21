@@ -21,11 +21,11 @@
  
 */
 
-#include <stdio.h>
-#include <math.h>
 #include <string>
 #include <vector>
-#include <float.h>
+#include <cstdio>
+#include <cmath>
+#include <cfloat>
 
 #include <lensfun/lensfun.h>
 #include <libgimp/gimp.h>
@@ -61,9 +61,9 @@ static gboolean create_dialog_window ();
 //####################################################################
 // Global variables
 GtkWidget *camera_combo, *maker_combo, *lens_combo;
-GtkWidget *CorrVignetting, *CorrTCA, *CorrDistortion;
+GtkWidget *vignetting_toggle, *tca_toggle, *distortion_toggle;
 lfDatabase *ldb;
-bool bComboBoxLock = false;
+bool combobox_lock = false;
 //--------------------------------------------------------------------
 
 
@@ -71,7 +71,7 @@ bool bComboBoxLock = false;
 // interpolation parameters
 const int cLanczosWidth = 2;
 const int cLanczosTableRes = 256;
-LUT<float> LanczosLUT (cLanczosWidth * 2 * cLanczosTableRes + 1);
+LUT<float> lanczosLUT (cLanczosWidth * 2 * cLanczosTableRes + 1);
 
 typedef enum GL_INTERPOL {
     GL_INTERPOL_NN,		// Nearest Neighbour
@@ -127,11 +127,11 @@ static MyLensfunOpts sLensfunParameters =
     "",
     "",
     "",
-    0.0,
-    0,
-    0,
-    0,
-    1.0,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    1.0f,
     LF_RECTILINEAR
 };
 //--------------------------------------------------------------------
@@ -161,11 +161,11 @@ static MyLensfunOptStorage sLensfunParameterStorage =
     "",
     "",
     "",
-    0.0,
-    0,
-    0,
-    0,
-    1.0,
+    0.0f,
+    0.0f,
+    0.0f,
+    0.0f,
+    1.0f,
     LF_RECTILINEAR
 };
 
@@ -228,12 +228,12 @@ static void  query (void)
 // Some helper functions
 
 // Round float to integer value
-int roundfloat2int(float d)
+inline int round2int(float d)
 {
-    return d<0?d-.5:d+.5;
+    return d < 0 ? d - .5f : d + 0.5f;
 }
 //--------------------------------------------------------------------
-void StrReplace(std::string& str, const std::string& old, const std::string& newstr)
+void string_replace(std::string& str, const std::string& old, const std::string& newstr)
 {
     size_t pos = 0;
     while ((pos = str.find(old, pos)) != std::string::npos)
@@ -243,12 +243,12 @@ void StrReplace(std::string& str, const std::string& old, const std::string& new
     }
 }
 //--------------------------------------------------------------------
-int StrCompare(const std::string& str1, const std::string& str2, bool CaseSensitive = false)
+int string_compare(const std::string& str1, const std::string& str2, bool case_sensitive = false)
 {
     string s1 = str1;
     string s2 = str2;
 
-    if (!CaseSensitive)
+    if (!case_sensitive)
     {
         transform(s1.begin(), s1.end(), s1.begin(), ::tolower);
         transform(s2.begin(), s2.end(), s2.begin(), ::tolower);
@@ -333,118 +333,125 @@ static void PrintLenses (const lfLens **lenses)
 
 //####################################################################
 // set dialog combo boxes to values
-static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLens) {
+static void dialog_set_cboxes( string new_maker, string new_camera, string new_lens) {
 
-    vector<string> vCameraList;
-    vector<string> vLensList;
+    vector<string> cameras_vec;
+    vector<string> lenses_vec;
 
-    const lfCamera**    cameras     = NULL;
-    const lfLens**  lenses      = NULL;
-    GtkTreeModel*   store       = NULL;
-
-    int iCurrMakerID    = -1;
-    int iCurrCameraID   = -1;
-    int iCurrLensId     = -1;
+    int new_maker_id    = -1;
+    int new_camera_id   = -1;
+    int new_lens_id     = -1;
 
     sLensfunParameters.CamMaker.clear();
     sLensfunParameters.Camera.clear();
     sLensfunParameters.Lens.clear();
 
-    if (sNewMake.empty()==true)
+    if (new_maker.empty()==true)
             return;
 
     // try to match maker with predefined list
-    int iNumMakers = 0;
+    int num_makers = 0;
     for (int i = 0; CameraMakers[i].compare("NULL")!=0; i++)
     {
-        if (StrCompare(CameraMakers[i], sNewMake)==0) {
+        if (string_compare(CameraMakers[i], new_maker)==0)
+        {
             gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), i);
-            iCurrMakerID = i;
+            new_maker_id = i;
         }
-        iNumMakers++;
+        num_makers++;
     }
 
-    if (iCurrMakerID>=0)
-        sLensfunParameters.CamMaker = CameraMakers[iCurrMakerID];
-    else {
-        gtk_combo_box_append_text( GTK_COMBO_BOX(maker_combo), sNewMake.c_str());
-        gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), iNumMakers);
-        iNumMakers++;
-        sLensfunParameters.CamMaker = sNewMake;
+    if (new_maker_id>=0)
+        sLensfunParameters.CamMaker = CameraMakers[new_maker_id];
+    else
+    {
+        gtk_combo_box_append_text( GTK_COMBO_BOX(maker_combo), new_maker.c_str());
+        gtk_combo_box_set_active(GTK_COMBO_BOX(maker_combo), num_makers);
+        num_makers++;
+        sLensfunParameters.CamMaker = new_maker;
     }
 
     // clear camera/lens combobox
-    store = gtk_combo_box_get_model( GTK_COMBO_BOX(camera_combo) );
+    GtkTreeModel* store = gtk_combo_box_get_model( GTK_COMBO_BOX(camera_combo) );
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
     store = gtk_combo_box_get_model( GTK_COMBO_BOX(lens_combo) );
     gtk_list_store_clear( GTK_LIST_STORE( store ) );
 
     // get all cameras from maker out of database
-    cameras = ldb->FindCamerasExt (sLensfunParameters.CamMaker.c_str(), NULL, LF_SEARCH_LOOSE );
-    if (cameras) {
-        for (int i=0; cameras [i]; i++){
-            vCameraList.push_back(string(lf_mlstr_get(cameras[i]->Model)));
-        }
-        sort(vCameraList.begin(), vCameraList.end());
-    } else {
+    const lfCamera** cameras = ldb->FindCamerasExt (sLensfunParameters.CamMaker.c_str(), nullptr, LF_SEARCH_LOOSE );
+    if (cameras)
+    {
+        for (int i=0; cameras [i]; i++)
+            cameras_vec.push_back(string(lf_mlstr_get(cameras[i]->Model)));
+
+        sort(cameras_vec.begin(), cameras_vec.end());
+    }
+    else
+    {
         return;
     }
 
-    for (unsigned int i=0; i<vCameraList.size(); i++)
+    for (unsigned int i=0; i<cameras_vec.size(); i++)
     {
-        gtk_combo_box_append_text( GTK_COMBO_BOX( camera_combo ), vCameraList[i].c_str());
+        gtk_combo_box_append_text( GTK_COMBO_BOX( camera_combo ), cameras_vec[i].c_str());
         // set to active if model matches current camera
-        if ((!sNewCamera.empty()) && (StrCompare(sNewCamera, vCameraList[i])==0)) {
+        if ((!new_camera.empty()) && (string_compare(new_camera, cameras_vec[i])==0))
+        {
             gtk_combo_box_set_active(GTK_COMBO_BOX(camera_combo), i);
-            sLensfunParameters.Camera = sNewCamera;
+            sLensfunParameters.Camera = new_camera;
         }
 
-        if (StrCompare(string(lf_mlstr_get(cameras[i]->Model)), sNewCamera)==0)
-            iCurrCameraID = i;
+        if (string_compare(string(lf_mlstr_get(cameras[i]->Model)), new_camera)==0)
+            new_camera_id = i;
     }
 
     // return if camera is unidentified
-    if (iCurrCameraID == -1)
+    if (new_camera_id == -1)
     {
         lf_free(cameras);
         return;
     }
 
     // find lenses for camera model
-    lenses = ldb->FindLenses (cameras[iCurrCameraID], NULL, NULL);
-    if (lenses) {
-        vLensList.clear();
+    const lfLens** lenses = ldb->FindLenses (cameras[new_camera_id], nullptr, nullptr);
+    if (lenses)
+    {
+        lenses_vec.clear();
         for (int i = 0; lenses [i]; i++)
-            vLensList.push_back(string(lf_mlstr_get(lenses[i]->Model)));
-        sort(vLensList.begin(), vLensList.end());
-    } else {
+            lenses_vec.push_back(string(lf_mlstr_get(lenses[i]->Model)));
+        sort(lenses_vec.begin(), lenses_vec.end());
+    }
+    else
+    {
         lf_free(cameras);
         return;
     }
 
-    for (unsigned int i = 0; i<vLensList.size(); i++)
+    for (unsigned int i = 0; i<lenses_vec.size(); i++)
     {
-        gtk_combo_box_append_text( GTK_COMBO_BOX( lens_combo ), (vLensList[i]).c_str());
+        gtk_combo_box_append_text( GTK_COMBO_BOX( lens_combo ), (lenses_vec[i]).c_str());
 
         // set active if lens matches current lens model
-        if ((!sNewLens.empty()) && (StrCompare(sNewLens, vLensList[i])==0)) {
+        if ((!new_lens.empty()) && (string_compare(new_lens, lenses_vec[i])==0))
+        {
             gtk_combo_box_set_active(GTK_COMBO_BOX(lens_combo), i);
-            sLensfunParameters.Lens = sNewLens;
+            sLensfunParameters.Lens = new_lens;
         }
 
-        if (StrCompare(string(lf_mlstr_get(lenses[i]->Model)), sNewLens)==0)
-            iCurrLensId = i;
+        if (string_compare(string(lf_mlstr_get(lenses[i]->Model)), new_lens)==0)
+            new_lens_id = i;
     }
 
-    gtk_widget_set_sensitive(CorrTCA, false);
-    gtk_widget_set_sensitive(CorrVignetting, false);
+    gtk_widget_set_sensitive(tca_toggle, false);
+    gtk_widget_set_sensitive(vignetting_toggle, false);
 
-    if (iCurrLensId >= 0)
+    if (new_lens_id >= 0)
     {
-        if (lenses[iCurrLensId]->CalibTCA != NULL)
-            gtk_widget_set_sensitive(CorrTCA, true);
-        if (lenses[iCurrLensId]->CalibVignetting != NULL)
-            gtk_widget_set_sensitive(CorrVignetting, true);
+        if (lenses[new_lens_id]->CalibTCA != nullptr)
+            gtk_widget_set_sensitive(tca_toggle, true);
+
+        if (lenses[new_lens_id]->CalibVignetting != nullptr)
+            gtk_widget_set_sensitive(vignetting_toggle, true);
     }
 
     lf_free(lenses);
@@ -454,81 +461,69 @@ static void dialog_set_cboxes( string sNewMake, string sNewCamera, string sNewLe
 
 //####################################################################
 // dialog callback functions
-static void
-maker_cb_changed( GtkComboBox *combo,
-                  gpointer     data )
+static void maker_cb_changed( GtkComboBox *combo, gpointer data )
 {
-    if (!bComboBoxLock) {
-        bComboBoxLock = true;
+    if (!combobox_lock) {
+        combobox_lock = true;
         dialog_set_cboxes(gtk_combo_box_get_active_text(GTK_COMBO_BOX(maker_combo)),
                           "",
                           "");
-        bComboBoxLock = false;
+        combobox_lock = false;
     }
 }
 //--------------------------------------------------------------------
-static void
-camera_cb_changed( GtkComboBox *combo,
-                   gpointer     data )
+static void camera_cb_changed( GtkComboBox *combo, gpointer data )
 {
-    if (!bComboBoxLock) {
-        bComboBoxLock = true;
+    if (!combobox_lock)
+    {
+        combobox_lock = true;
         dialog_set_cboxes(string(gtk_combo_box_get_active_text(GTK_COMBO_BOX(maker_combo))),
                           string(gtk_combo_box_get_active_text(GTK_COMBO_BOX(camera_combo))),
                           "");
-        bComboBoxLock = false;
+        combobox_lock = false;
     }
 }
 //--------------------------------------------------------------------
-static void
-lens_cb_changed( GtkComboBox *combo,
-                 gpointer     data )
+static void lens_cb_changed( GtkComboBox *combo, gpointer data )
 {
-    if (!bComboBoxLock) {
-        bComboBoxLock = true;
+    if (!combobox_lock)
+    {
+        combobox_lock = true;
         dialog_set_cboxes(string(gtk_combo_box_get_active_text(GTK_COMBO_BOX(maker_combo))),
                           string(gtk_combo_box_get_active_text(GTK_COMBO_BOX(camera_combo))),
                           string(gtk_combo_box_get_active_text(GTK_COMBO_BOX(lens_combo))));
-        bComboBoxLock = false;
+        combobox_lock = false;
     }
 }
 //--------------------------------------------------------------------
-static void
-focal_changed( GtkComboBox *combo,
-               gpointer     data )
+static void focal_changed( GtkComboBox *combo, gpointer data )
 {
     sLensfunParameters.Focal = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
 }
 //--------------------------------------------------------------------
-static void
-aperture_changed( GtkComboBox *combo,
-               gpointer     data )
+static void aperture_changed( GtkComboBox *combo, gpointer data )
 {
     sLensfunParameters.Aperture = (float) gtk_adjustment_get_value(GTK_ADJUSTMENT(data));
 }
 //--------------------------------------------------------------------
-static void
-scalecheck_changed( GtkCheckButton *togglebutn,
-                    gpointer     data )
+static void scalecheck_changed( GtkCheckButton *togglebutn, gpointer data )
 {
     sLensfunParameters.Scale = !gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(togglebutn));
 }
 //--------------------------------------------------------------------
-static void
-modify_changed( GtkCheckButton *togglebutn,
-                    gpointer     data )
+static void modify_changed( GtkCheckButton *togglebutn, gpointer data )
 {
     sLensfunParameters.ModifyFlags = 0;
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrDistortion))
-        && GTK_WIDGET_SENSITIVE(CorrDistortion))
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(distortion_toggle))
+        && GTK_WIDGET_SENSITIVE(distortion_toggle))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_DISTORTION;
 
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrTCA))
-        && GTK_WIDGET_SENSITIVE(CorrTCA))
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(tca_toggle))
+        && GTK_WIDGET_SENSITIVE(tca_toggle))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_TCA;
 
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(CorrVignetting))
-        && GTK_WIDGET_SENSITIVE(CorrVignetting))
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(vignetting_toggle))
+        && GTK_WIDGET_SENSITIVE(vignetting_toggle))
         sLensfunParameters.ModifyFlags |= LF_MODIFY_VIGNETTING;
 }//--------------------------------------------------------------------
 
@@ -552,7 +547,7 @@ static gboolean create_dialog_window ()
     GtkWidget *table, *table2;
     gboolean   run;
 
-    gint       iTableRow = 0;
+    gint       table_row = 0;
 
     gimp_ui_init ("mylensfun", FALSE);
 
@@ -587,56 +582,56 @@ static gboolean create_dialog_window ()
     maker_label = gtk_label_new ("Maker:");
     gtk_misc_set_alignment(GTK_MISC(maker_label),0.0,0.5);
     gtk_widget_show (maker_label);
-    gtk_table_attach(GTK_TABLE(table), maker_label, 0, 1, iTableRow, iTableRow+1, GTK_FILL, GTK_FILL, 0,0 );
+    gtk_table_attach(GTK_TABLE(table), maker_label, 0, 1, table_row, table_row+1, GTK_FILL, GTK_FILL, 0,0 );
 
     maker_combo = gtk_combo_box_new_text();
     gtk_widget_show (maker_combo);
 
-    for (int i = 0; StrCompare(CameraMakers[i], "NULL")!=0; i++)
+    for (int i = 0; string_compare(CameraMakers[i], "NULL")!=0; i++)
     {
         gtk_combo_box_append_text( GTK_COMBO_BOX( maker_combo ), CameraMakers[i].c_str());
     }
 
-    gtk_table_attach_defaults(GTK_TABLE(table), maker_combo, 1, 2, iTableRow, iTableRow+1 );
+    gtk_table_attach_defaults(GTK_TABLE(table), maker_combo, 1, 2, table_row, table_row+1 );
 
-    iTableRow++;
+    table_row++;
 
     // camera
     camera_label = gtk_label_new ("Camera:");
     gtk_misc_set_alignment(GTK_MISC(camera_label),0.0,0.5);
     gtk_widget_show (camera_label);
-    gtk_table_attach(GTK_TABLE(table), camera_label, 0, 1, iTableRow, iTableRow+1, GTK_FILL, GTK_FILL, 0,0 );
+    gtk_table_attach(GTK_TABLE(table), camera_label, 0, 1, table_row, table_row+1, GTK_FILL, GTK_FILL, 0,0 );
 
     camera_combo = gtk_combo_box_new_text();
     gtk_widget_show (camera_combo);
 
-    gtk_table_attach_defaults(GTK_TABLE(table), camera_combo, 1,2, iTableRow, iTableRow+1 );
+    gtk_table_attach_defaults(GTK_TABLE(table), camera_combo, 1,2, table_row, table_row+1 );
 
-    iTableRow++;
+    table_row++;
 
     // lens
     lens_label = gtk_label_new ("Lens:");
     gtk_misc_set_alignment(GTK_MISC(lens_label),0.0,0.5);
     gtk_widget_show (lens_label);
-    gtk_table_attach_defaults(GTK_TABLE(table), lens_label, 0,1,iTableRow, iTableRow+1 );
+    gtk_table_attach_defaults(GTK_TABLE(table), lens_label, 0,1,table_row, table_row+1 );
 
     lens_combo = gtk_combo_box_new_text();
     gtk_widget_show (lens_combo);
 
-    gtk_table_attach_defaults(GTK_TABLE(table), lens_combo, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;
+    gtk_table_attach_defaults(GTK_TABLE(table), lens_combo, 1,2,table_row, table_row+1 );
+    table_row++;
 
     // focal length
     focal_label = gtk_label_new("Focal length (mm):");
     gtk_misc_set_alignment(GTK_MISC(focal_label),0.0,0.5);
     gtk_widget_show (focal_label);
-    gtk_table_attach_defaults(GTK_TABLE(table), focal_label, 0,1,iTableRow, iTableRow+1 );
+    gtk_table_attach_defaults(GTK_TABLE(table), focal_label, 0,1,table_row, table_row+1 );
 
     spinbutton_adj = gtk_adjustment_new (sLensfunParameters.Focal, 0, 5000, 0.1, 0, 0);
     spinbutton = gtk_spin_button_new (GTK_ADJUSTMENT (spinbutton_adj), 2, 1);
     gtk_widget_show (spinbutton);
-    gtk_table_attach_defaults(GTK_TABLE(table), spinbutton, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;
+    gtk_table_attach_defaults(GTK_TABLE(table), spinbutton, 1,2,table_row, table_row+1 );
+    table_row++;
 
     gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton), TRUE);
 
@@ -644,13 +639,13 @@ static gboolean create_dialog_window ()
     aperture_label = gtk_label_new("Aperture:");
     gtk_misc_set_alignment(GTK_MISC(aperture_label),0.0,0.5);
     gtk_widget_show (focal_label);
-    gtk_table_attach_defaults(GTK_TABLE(table), aperture_label, 0,1,iTableRow, iTableRow+1 );
+    gtk_table_attach_defaults(GTK_TABLE(table), aperture_label, 0,1,table_row, table_row+1 );
 
     spinbutton_aperture_adj = gtk_adjustment_new (sLensfunParameters.Aperture, 0, 128, 0.1, 0, 0);
     spinbutton_aperture = gtk_spin_button_new (GTK_ADJUSTMENT (spinbutton_aperture_adj), 2, 1);
     gtk_widget_show (spinbutton_aperture);
-    gtk_table_attach_defaults(GTK_TABLE(table), spinbutton_aperture, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;
+    gtk_table_attach_defaults(GTK_TABLE(table), spinbutton_aperture, 1,2,table_row, table_row+1 );
+    table_row++;
 
     gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (spinbutton_aperture), TRUE);
 
@@ -673,41 +668,41 @@ static gboolean create_dialog_window ()
     gtk_table_set_col_spacings(GTK_TABLE(table2), 2);
     gtk_container_set_border_width(GTK_CONTAINER(table2), 10);
 
-    iTableRow = 0;
+    table_row = 0;
 
     // scale to fit checkbox
     scalecheck = gtk_check_button_new_with_label("Scale to fit");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
     gtk_widget_show (scalecheck);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(scalecheck), !sLensfunParameters.Scale);
-    gtk_table_attach_defaults(GTK_TABLE(table2), scalecheck, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;
+    gtk_table_attach_defaults(GTK_TABLE(table2), scalecheck, 1,2,table_row, table_row+1 );
+    table_row++;
 
     // enable distortion correction
-    CorrDistortion = gtk_check_button_new_with_label("Distortion");
+    distortion_toggle = gtk_check_button_new_with_label("Distortion");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
-    gtk_widget_show (CorrDistortion);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrDistortion), true);
-    gtk_table_attach_defaults(GTK_TABLE(table2), CorrDistortion, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;
+    gtk_widget_show (distortion_toggle);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(distortion_toggle), true);
+    gtk_table_attach_defaults(GTK_TABLE(table2), distortion_toggle, 1,2,table_row, table_row+1 );
+    table_row++;
 
     // enable vignetting correction
-    CorrVignetting = gtk_check_button_new_with_label("Vignetting");
+    vignetting_toggle = gtk_check_button_new_with_label("Vignetting");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
-    gtk_widget_show (CorrVignetting);
-    gtk_widget_set_sensitive(CorrVignetting, false);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrVignetting), false);
-    gtk_table_attach_defaults(GTK_TABLE(table2), CorrVignetting, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;
+    gtk_widget_show (vignetting_toggle);
+    gtk_widget_set_sensitive(vignetting_toggle, false);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(vignetting_toggle), false);
+    gtk_table_attach_defaults(GTK_TABLE(table2), vignetting_toggle, 1,2,table_row, table_row+1 );
+    table_row++;
 
     // enable TCA correction
-    CorrTCA = gtk_check_button_new_with_label("Chromatic Aberration");
+    tca_toggle = gtk_check_button_new_with_label("Chromatic Aberration");
     //gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check), FALSE);
-    gtk_widget_show (CorrTCA);
-    gtk_widget_set_sensitive(CorrTCA, false);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(CorrTCA), false);
-    gtk_table_attach_defaults(GTK_TABLE(table2), CorrTCA, 1,2,iTableRow, iTableRow+1 );
-    iTableRow++;
+    gtk_widget_show (tca_toggle);
+    gtk_widget_set_sensitive(tca_toggle, false);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(tca_toggle), false);
+    gtk_table_attach_defaults(GTK_TABLE(table2), tca_toggle, 1,2,table_row, table_row+1 );
+    table_row++;
 
     gtk_container_add (GTK_CONTAINER (frame2), table2);
     gtk_widget_show_all(table2);
@@ -731,11 +726,11 @@ static gboolean create_dialog_window ()
 
     g_signal_connect( G_OBJECT( scalecheck ), "toggled",
                       G_CALLBACK( scalecheck_changed ), NULL );
-    g_signal_connect( G_OBJECT( CorrDistortion ), "toggled",
+    g_signal_connect( G_OBJECT( distortion_toggle ), "toggled",
                       G_CALLBACK( modify_changed ), NULL );
-    g_signal_connect( G_OBJECT( CorrTCA ), "toggled",
+    g_signal_connect( G_OBJECT( tca_toggle ), "toggled",
                       G_CALLBACK( modify_changed ), NULL );
-    g_signal_connect( G_OBJECT( CorrVignetting ), "toggled",
+    g_signal_connect( G_OBJECT( vignetting_toggle ), "toggled",
                       G_CALLBACK( modify_changed ), NULL );
 
     // show and run
@@ -750,7 +745,7 @@ static gboolean create_dialog_window ()
 
 //####################################################################
 // Interpolation functions
-inline float Lanczos(float x)
+inline float lanczos_kernel(float x)
 {
     if ( (x<FLT_MIN) && (x>-FLT_MIN) )
         return 1.0f;
@@ -762,21 +757,23 @@ inline float Lanczos(float x)
     return ( cLanczosWidth * sin(xpi) * sin(xpi/cLanczosWidth) ) / ( xpi*xpi );
 }
 //--------------------------------------------------------------------
-void InitInterpolation(glInterpolationType intType)
+void init_interpolation(glInterpolationType int_type)
 {
-    switch(intType) {
-        case GL_INTERPOL_NN: break;
-        case GL_INTERPOL_BL: break;
-        case GL_INTERPOL_LZ:
-                for (int i = -cLanczosWidth*cLanczosTableRes; i < cLanczosWidth*cLanczosTableRes; i++) {
-                    LanczosLUT[i + cLanczosWidth*cLanczosTableRes] = Lanczos(static_cast<float>(i)/static_cast<float>(cLanczosTableRes));
-                }
+    switch(int_type) {
 
-                break;
+        case GL_INTERPOL_NN: break;
+
+        case GL_INTERPOL_BL: break;
+
+        case GL_INTERPOL_LZ:
+            for (int i = -cLanczosWidth*cLanczosTableRes; i < cLanczosWidth*cLanczosTableRes; i++)
+                lanczosLUT[i + cLanczosWidth*cLanczosTableRes] = lanczos_kernel(static_cast<float>(i)/static_cast<float>(cLanczosTableRes));
+
+            break;
     }
 }
 //--------------------------------------------------------------------
-inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
+inline int interp_lanczos(guchar *img_buffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
 {
 
     int   xl   = int(xpos);
@@ -795,16 +792,19 @@ inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, 
     }
 
     // convolve with lanczos kernel
-    for (int i = xl-cLanczosWidth+1; i < xl+cLanczosWidth; i++) {
-        for (int j = yl-cLanczosWidth+1; j < yl+cLanczosWidth; j++) {
-            L = LanczosLUT[ (xpos - static_cast<float>(i))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ]
-                   * LanczosLUT[ (ypos - static_cast<float>(j))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ];
+    for (int i = xl-cLanczosWidth+1; i < xl+cLanczosWidth; i++)
+    {
+        for (int j = yl-cLanczosWidth+1; j < yl+cLanczosWidth; j++)
+        {
+            L = lanczosLUT[ (xpos - static_cast<float>(i))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ]
+                   * lanczosLUT[ (ypos - static_cast<float>(j))*static_cast<float>(cLanczosTableRes) + static_cast<float>(cLanczosWidth*cLanczosTableRes) ];
             // L = Lanczos(xpos - static_cast<float>(i))
             //                   * Lanczos(ypos - static_cast<float>(j));
-            y += static_cast<float>(ImgBuffer[ (channels*w*j) + (i*channels) + chan ]) * L;
+            y += static_cast<float>(img_buffer[ (channels*w*j) + (i*channels) + chan ]) * L;
             norm += L;
         }
     }
+
     // normalize
     y = y / norm;
 
@@ -815,10 +815,10 @@ inline int InterpolateLanczos(guchar *ImgBuffer, gint w, gint h, gint channels, 
         y = 0;
 
     // round to integer and return
-    return roundfloat2int(y);
+    return round2int(y);
 }
 //--------------------------------------------------------------------
-inline int InterpolateLinear(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
+inline int interp_linear(guchar *img_buffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
 {
     // interpolated values in x and y  direction
     float   x1, x2, y;
@@ -841,23 +841,23 @@ inline int InterpolateLinear(guchar *ImgBuffer, gint w, gint h, gint channels, f
     }
 
 
-    float px1y1 = (float) ImgBuffer[ (channels*w*yu) + (xl*channels) + chan ];
-    float px1y2 = (float) ImgBuffer[ (channels*w*yl) + (xl*channels) + chan ];
-    float px2y1 = (float) ImgBuffer[ (channels*w*yu) + (xr*channels) + chan ];
-    float px2y2 = (float) ImgBuffer[ (channels*w*yl) + (xr*channels) + chan ];
+    float px1y1 = (float) img_buffer[ (channels*w*yu) + (xl*channels) + chan ];
+    float px1y2 = (float) img_buffer[ (channels*w*yl) + (xl*channels) + chan ];
+    float px2y1 = (float) img_buffer[ (channels*w*yu) + (xr*channels) + chan ];
+    float px2y2 = (float) img_buffer[ (channels*w*yl) + (xr*channels) + chan ];
 
     x1 = (static_cast<float>(xr) - xpos)*px1y1 + (xpos - static_cast<float>(xl))*px2y1;
     x2 = (static_cast<float>(xr) - xpos)*px1y2 + (xpos - static_cast<float>(xl))*px2y2;
 
     y  = (ypos - static_cast<float>(yu))*x2    + (static_cast<float>(yl) - ypos)*x1;
 
-    return roundfloat2int(y);
+    return round2int(y);
 }
 //--------------------------------------------------------------------
-inline int InterpolateNearest(guchar *ImgBuffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
+inline int interp_nearest(guchar *img_buffer, gint w, gint h, gint channels, float xpos, float ypos, int chan)
 {
-    int x = roundfloat2int(xpos);
-    int y = roundfloat2int(ypos);
+    int x = round2int(xpos);
+    int y = round2int(ypos);
 
 
     // border checking
@@ -869,14 +869,15 @@ inline int InterpolateNearest(guchar *ImgBuffer, gint w, gint h, gint channels, 
         return 0;
     }
 
-    return ImgBuffer[ (channels*w*y) + (x*channels) + chan ];
+    return img_buffer[ (channels*w*y) + (x*channels) + chan ];
 }
 //--------------------------------------------------------------------
 
 
 //####################################################################
 // Processing
-static void process_image (gint32 drawable_id) {
+static void process_image (gint32 drawable_id)
+{
 
     GeglBuffer *r_buffer, *w_buffer;
     const Babl *drawable_fmt;
@@ -910,7 +911,7 @@ static void process_image (gint32 drawable_id) {
     img_buf     = g_new (guchar, drawable_bpp * (drawable_w + 1) * (drawable_h + 1));
     img_buf_out = g_new (guchar, drawable_bpp * (drawable_w + 1) * (drawable_h + 1));
 
-    InitInterpolation(GL_INTERPOL_LZ);
+    init_interpolation(GL_INTERPOL_LZ);
 
     // Copy pixel data from GIMP to internal buffer
     gegl_buffer_get (r_buffer,
@@ -921,16 +922,16 @@ static void process_image (gint32 drawable_id) {
                      GEGL_AUTO_ROWSTRIDE,
                      GEGL_ABYSS_NONE);
 
-    if (sLensfunParameters.Scale<1) {
+    if (sLensfunParameters.Scale<1)
         sLensfunParameters.ModifyFlags |= LF_MODIFY_SCALE;
-    }
 
     const lfCamera **cameras = ldb->FindCamerasExt (sLensfunParameters.CamMaker.c_str(), sLensfunParameters.Camera.c_str());
     sLensfunParameters.Crop = cameras[0]->CropFactor;
 
     const lfLens **lenses = ldb->FindLenses (cameras[0], NULL, sLensfunParameters.Lens.c_str());
 
-    if (DEBUG) {
+    if (DEBUG)
+    {
         g_print("\nApplied settings:\n");
         g_print("\tCamera: %s, %s\n", cameras[0]->Maker, cameras[0]->Model);
         g_print("\tLens: %s\n", lenses[0]->Model);
@@ -950,11 +951,11 @@ static void process_image (gint32 drawable_id) {
                          sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
                          sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
 
-    int iRowCount = 0;
+    int row_count = 0;
     #pragma omp parallel
     {
         // buffer containing undistorted coordinates for one row
-        float *UndistCoord = g_new (float, drawable_w * 2 * drawable_chan);
+        float *undist_coord = g_new (float, drawable_w * 2 * drawable_chan);
 
         //main loop for processing, iterate through rows
         #pragma omp for
@@ -965,34 +966,35 @@ static void process_image (gint32 drawable_id) {
                                         LF_CR_3(RED, GREEN, BLUE),
                                         drawable_chan * drawable_w);
 
-            mod->ApplySubpixelGeometryDistortion (0, i, drawable_w, 1, UndistCoord);
+            mod->ApplySubpixelGeometryDistortion (0, i, drawable_w, 1, undist_coord);
 
-            float*  UndistIter = UndistCoord;
+            float*  undist_iter = undist_coord;
             guchar *OutputBuffer = &img_buf_out[drawable_chan * drawable_w * i];
             //iterate through subpixels in one row
             for (int j = 0; j < drawable_w * drawable_chan; j += drawable_chan)
             {
-                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_chan, UndistIter [0], UndistIter [1], 0);
+                *OutputBuffer = interp_lanczos(img_buf, drawable_w, drawable_h, drawable_chan, undist_iter [0], undist_iter [1], 0);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_chan, UndistIter [2], UndistIter [3], 1);
+                *OutputBuffer = interp_lanczos(img_buf, drawable_w, drawable_h, drawable_chan, undist_iter [2], undist_iter [3], 1);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_chan, UndistIter [4], UndistIter [5], 2);
+                *OutputBuffer = interp_lanczos(img_buf, drawable_w, drawable_h, drawable_chan, undist_iter [4], undist_iter [5], 2);
                 OutputBuffer++;
 
                 // move pointer to next pixel
-                UndistIter += 2 * 3;
+                undist_iter += 2 * 3;
             }
             #pragma omp atomic
-            iRowCount++;
+            row_count++;
             //update progress bar only every N rows
-            if (iRowCount % 200 == 0) {
+            if (row_count % 200 == 0)
+            {
                  #pragma omp critical
                  {
-                 gimp_progress_update ((gdouble) iRowCount / (gdouble) (drawable_h));
+                 gimp_progress_update ((gdouble) row_count / (gdouble) (drawable_h));
                  }
             }
         }
-        g_free(UndistCoord);
+        g_free(undist_coord);
     }
 
     delete mod;
@@ -1033,23 +1035,16 @@ static void process_image (gint32 drawable_id) {
 //####################################################################
 // Read camera and lens info from exif and try to find in database
 //
-static int read_opts_from_exif(gint32 image_id) {
+static int read_opts_from_exif(gint32 image_id)
+{
 
-    Exiv2::ExifData exifData;
-
-    const lfCamera  **cameras    = 0;
-    const lfCamera  *camera      = 0;
-
-    const lfLens    **lenses     = 0;
-    const lfLens    *lens        = 0;
-    std::string LensNameMN;
+    Exiv2::ExifData exif_data;
     
     GExiv2Metadata  *gimp_metadata;
     gchar          **exif_tags;
 
-    if (DEBUG) {
+    if (DEBUG)
         g_print ("Reading exif data...");
-    }
 
     gimp_metadata = (GExiv2Metadata *) gimp_image_get_metadata (image_id);
 
@@ -1062,9 +1057,8 @@ static int read_opts_from_exif(gint32 image_id) {
     else
     {
         if (DEBUG)
-        {
             g_print ("OK.\nChecking for required exif tags...");
-        }
+
         if (!gexiv2_metadata_has_tag (gimp_metadata, "Exif.Image.Make"))
         {
             if (DEBUG)
@@ -1095,100 +1089,115 @@ static int read_opts_from_exif(gint32 image_id) {
     exif_tags = gexiv2_metadata_get_exif_tags (gimp_metadata);
     while (*exif_tags != nullptr)
     {
-        exifData[*exif_tags] = gexiv2_metadata_get_tag_string (gimp_metadata, *exif_tags);
+        exif_data[*exif_tags] = gexiv2_metadata_get_tag_string (gimp_metadata, *exif_tags);
         exif_tags++;
     }
 
     // get focal length and aperture
-    sLensfunParameters.Focal = exifData["Exif.Photo.FocalLength"].toFloat();
-    sLensfunParameters.Aperture = exifData["Exif.Photo.FNumber"].toFloat();
+    sLensfunParameters.Focal = exif_data["Exif.Photo.FocalLength"].toFloat();
+    sLensfunParameters.Aperture = exif_data["Exif.Photo.FNumber"].toFloat();
 
     // search database for camera
-    cameras = ldb->FindCameras (exifData["Exif.Image.Make"].toString().c_str(), exifData["Exif.Image.Model"].toString().c_str());
-    if (cameras) {
-        camera = cameras [0];
+    const lfCamera  **cameras = ldb->FindCameras (exif_data["Exif.Image.Make"].toString().c_str(), exif_data["Exif.Image.Model"].toString().c_str());
+    if (cameras != nullptr)
+    {
+        const lfCamera *camera = cameras [0];
         sLensfunParameters.Crop = camera->CropFactor;
         sLensfunParameters.Camera = string(lf_mlstr_get(camera->Model));
         sLensfunParameters.CamMaker = string(lf_mlstr_get(camera->Maker));
-    }  else {
-        sLensfunParameters.CamMaker = exifData["Exif.Image.Make"].toString();
+    }
+    else
+    {
+        sLensfunParameters.CamMaker = exif_data["Exif.Image.Make"].toString();
     }
     //PrintCameras(cameras, ldb);
 
     //Get lensID
-    string CamMaker = exifData["Exif.Image.Make"].toString();
-    transform(CamMaker.begin(), CamMaker.end(),CamMaker.begin(), ::tolower);
-    vector<string> MakerNoteKeys;
+    string cam_maker = exif_data["Exif.Image.Make"].toString();
+    transform(cam_maker.begin(), cam_maker.end(),cam_maker.begin(), ::tolower);
+    vector<string> maker_note_keys;
 
     //Try to find special MakerNote Tag for lens depending on Maker
-    if ((CamMaker.find("pentax"))!=string::npos) {
-        MakerNoteKeys.push_back("Exif.Pentax.LensType");
-        MakerNoteKeys.push_back("Exif.PentaxDng.LensType");
+    if ((cam_maker.find("pentax"))!=string::npos)
+    {
+        maker_note_keys.push_back("Exif.Pentax.LensType");
+        maker_note_keys.push_back("Exif.PentaxDng.LensType");
     }
-    else if ((CamMaker.find("canon"))!=string::npos) {
-        MakerNoteKeys.push_back("Exif.CanonCs.LensType");
+    else if ((cam_maker.find("canon"))!=string::npos)
+    {
+        maker_note_keys.push_back("Exif.CanonCs.LensType");
     }
-    else if ((CamMaker.find("minolta"))!=string::npos) {
-        MakerNoteKeys.push_back("Exif.Minolta.LensID");
+    else if ((cam_maker.find("minolta"))!=string::npos) {
+        maker_note_keys.push_back("Exif.Minolta.LensID");
     }
-    else if ((CamMaker.find("nikon"))!=string::npos) {
-        MakerNoteKeys.push_back("Exif.NikonLd3.LensIDNumber");
-        MakerNoteKeys.push_back("Exif.NikonLd2.LensIDNumber");
-        MakerNoteKeys.push_back("Exif.NikonLd1.LensIDNumber");
+    else if ((cam_maker.find("nikon"))!=string::npos)
+    {
+        maker_note_keys.push_back("Exif.NikonLd3.LensIDNumber");
+        maker_note_keys.push_back("Exif.NikonLd2.LensIDNumber");
+        maker_note_keys.push_back("Exif.NikonLd1.LensIDNumber");
     }
-    else if ((CamMaker.find("olympus"))!=string::npos) {
-        MakerNoteKeys.push_back("Exif.OlympusEq.LensType");
+    else if ((cam_maker.find("olympus"))!=string::npos)
+    {
+        maker_note_keys.push_back("Exif.OlympusEq.LensType");
     }
-    else {
+    else
+    {
         //Use default lens model tag for all other makers
-        MakerNoteKeys.push_back("Exif.Photo.LensModel");
+        maker_note_keys.push_back("Exif.Photo.LensModel");
     }
 
     //Decode Lens ID
     if (DEBUG)
-    {
         g_print ("OK.\nChecking for optional lens related maker note exif tags...\n");
-    }
-    for (int i=0; i < MakerNoteKeys.size(); i++)
+
+    string lens_name;
+    for (int i=0; i < maker_note_keys.size(); i++)
     {
-        if (gexiv2_metadata_has_tag (gimp_metadata, MakerNoteKeys[i].c_str ()))
+        if (gexiv2_metadata_has_tag (gimp_metadata, maker_note_keys[i].c_str ()))
         {
-            Exiv2::ExifKey ek(MakerNoteKeys[i]);
-            Exiv2::ExifData::const_iterator md = exifData.findKey(ek);
-            if (md != exifData.end()) {
-                LensNameMN = md->print(&exifData);
+            Exiv2::ExifKey ek(maker_note_keys[i]);
+            Exiv2::ExifData::const_iterator md = exif_data.findKey(ek);
+            if (md != exif_data.end())
+            {
+                lens_name = md->print(&exif_data);
 
                 //Modify some lens names for better searching in lfDatabase
-                if ((CamMaker.find("nikon"))!=std::string::npos) {
-                    StrReplace(LensNameMN, "Nikon", "");
-                    StrReplace(LensNameMN, "Zoom-Nikkor", "");
+                if ((cam_maker.find("nikon"))!=std::string::npos)
+                {
+                    string_replace(lens_name, "Nikon", "");
+                    string_replace(lens_name, "Zoom-Nikkor", "");
                 }
             }
             if (DEBUG)
-                g_print ("\t\'%s\' was found.\n", MakerNoteKeys[i].c_str ());
+                g_print ("\t\'%s\' was found.\n", maker_note_keys[i].c_str ());
             break;            
         }
         else if (DEBUG)
         {
-            g_print ("\t\'%s\' not present!\n", MakerNoteKeys[i].c_str ());
+            g_print ("\t\'%s\' not present!\n", maker_note_keys[i].c_str ());
         }
     }
 
-    if (camera) {
-        if (LensNameMN.size()>8) {  // only take lens names with significant length
-            lenses = ldb->FindLenses (camera, NULL, LensNameMN.c_str());
-        } else {
-            lenses = ldb->FindLenses (camera, NULL, NULL);
-        }
-        if (lenses) {
-            lens = lenses[0];
+    if (camera)
+    {
+        const lfLens **lenses = nullptr;
+
+        if (lens_name.size()>8)  // only take lens names with significant length
+            lenses = ldb->FindLenses (camera, nullptr, lens_name.c_str());
+        else
+            lenses = ldb->FindLenses (camera, nullptr, nullptr);
+
+        if (lenses != nullptr)
+        {
+            const lfLens *lens = lenses[0];
             sLensfunParameters.Lens = string(lf_mlstr_get(lens->Model));
         }
         lf_free (lenses);
     }
     lf_free (cameras);
 
-    if (DEBUG) {
+    if (DEBUG)
+    {
         g_print("Retrieved exif data:\n");
         g_print("\tCamera: %s, %s\n", sLensfunParameters.CamMaker.c_str(), sLensfunParameters.Camera.c_str());
         g_print("\tLens: %s\n", sLensfunParameters.Lens.c_str());
@@ -1205,7 +1214,8 @@ static int read_opts_from_exif(gint32 image_id) {
 
 //####################################################################
 // store and load parameters and settings to/from gimp_data_storage
-static void loadSettings() {
+static void load_settings()
+{
 
     gimp_get_data ("plug-in-gimplensfun", &sLensfunParameterStorage);
 
@@ -1226,7 +1236,8 @@ static void loadSettings() {
 }
 //--------------------------------------------------------------------
 
-static void storeSettings() {
+static void store_settings()
+{
 
     sLensfunParameterStorage.ModifyFlags = sLensfunParameters.ModifyFlags;
     sLensfunParameterStorage.Inverse  = sLensfunParameters.Inverse;
@@ -1248,14 +1259,14 @@ static void storeSettings() {
 //####################################################################
 // Run()
 static void
-run (const gchar*   name,
-     gint           nparams,
+run (const gchar*       name,
+     gint               nparams,
      const GimpParam*   param,
-     gint*          nreturn_vals,
-     GimpParam**    return_vals)
+     gint*              nreturn_vals,
+     GimpParam**        return_vals)
 {
     static GimpParam    values[1];
-    gint32              imageID;
+    gint32              image_id;
     GimpRunMode         run_mode;
     gint32              drawable_id;
     
@@ -1270,21 +1281,24 @@ run (const gchar*   name,
 
     gimp_progress_init ("Lensfun correction...");
 
-    imageID = param[1].data.d_drawable;
+    image_id = param[1].data.d_drawable;
     drawable_id = param[2].data.d_drawable;
 
     if (DEBUG) g_print ("Loading database...");
     //Load lensfun database
     ldb = new lfDatabase ();
-    if (ldb->Load () != LF_NO_ERROR) {
+    if (ldb->Load () != LF_NO_ERROR)
+    {
         if (DEBUG) g_print ("failed!\n");
-    } else {
+    }
+    else
+    {
         if (DEBUG) g_print ("OK\n");
     }
 
     // read exif data
-    if (read_opts_from_exif (imageID) != 0)
-       loadSettings();
+    if (read_opts_from_exif (image_id) != 0)
+       load_settings();
 
     run_mode = GimpRunMode(param[0].data.d_int32);
     if (run_mode == GIMP_RUN_INTERACTIVE)
@@ -1305,7 +1319,7 @@ run (const gchar*   name,
 	    process_image(drawable_id);
     }
 
-    storeSettings();
+    store_settings();
     gegl_exit ();
 
     delete ldb;
