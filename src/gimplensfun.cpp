@@ -31,8 +31,8 @@
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
-#include <exiv2/image.hpp>
 #include <exiv2/exif.hpp>
+#include <gexiv2/gexiv2.h>
 
 #define VERSIONSTR "0.2.5-dev"
 
@@ -1031,9 +1031,8 @@ static void process_image (GimpDrawable *drawable) {
 //####################################################################
 // Read camera and lens info from exif and try to find in database
 //
-static int read_opts_from_exif(const char *filename) {
+static int read_opts_from_exif(gint32 image_id) {
 
-    Exiv2::Image::AutoPtr Exiv2image;
     Exiv2::ExifData exifData;
 
     const lfCamera  **cameras    = 0;
@@ -1042,31 +1041,65 @@ static int read_opts_from_exif(const char *filename) {
     const lfLens    **lenses     = 0;
     const lfLens    *lens        = 0;
     std::string LensNameMN;
+    
+    GExiv2Metadata  *gimp_metadata;
+    gchar          **exif_tags;
 
     if (DEBUG) {
         g_print ("Reading exif data...");
     }
 
-    try {
-        // read exif from file
-        Exiv2image = Exiv2::ImageFactory::open(string(filename));
-        Exiv2image.get();
-        Exiv2image->readMetadata();
-        exifData = Exiv2image->exifData();
+    gimp_metadata = (GExiv2Metadata *) gimp_image_get_metadata (image_id);
 
-        if (exifData.empty()) {
-            if (DEBUG) {
-                g_print ("no exif data found. \n");
-            }
-            return -1;
-        }
-    }
-    catch (Exiv2::AnyError& e) {
-        if (DEBUG) {
-            g_print ("exception on reading data. \n");
-        }
+    if (!gimp_metadata || !gexiv2_metadata_has_exif (gimp_metadata))
+    {
+        if (DEBUG)
+            g_print ("No exif data found! \n");
         return -1;
     }
+    else
+    {
+        if (DEBUG)
+        {
+            g_print ("OK.\nChecking for required exif tags...");
+        }
+        if (!gexiv2_metadata_has_tag (gimp_metadata, "Exif.Image.Make"))
+        {
+            if (DEBUG)
+                g_print ("\n\t\'Exif.Image.Make\' not present!");
+            return -1;
+        }
+        if (!gexiv2_metadata_has_tag (gimp_metadata, "Exif.Image.Model"))
+        {
+            if (DEBUG)
+                g_print ("\n\t\'Exif.Image.Model\' not present!");
+            return -1;
+        }
+        if (!gexiv2_metadata_has_tag (gimp_metadata, "Exif.Photo.FocalLength"))
+        {
+            if (DEBUG)
+                g_print ("\n\t\'Exif.Photo.FocalLength\' not present!");
+            return -1;
+        }
+        if (!gexiv2_metadata_has_tag (gimp_metadata, "Exif.Photo.FNumber"))
+        {
+            if (DEBUG)
+                g_print ("\n\t\'Exif.Photo.FNumber\' not present!");
+            return -1;    
+        }
+    }
+    
+    // import all tags
+    exif_tags = gexiv2_metadata_get_exif_tags (gimp_metadata);
+    while (*exif_tags != nullptr)
+    {
+        exifData[*exif_tags] = gexiv2_metadata_get_tag_string (gimp_metadata, *exif_tags);
+        exif_tags++;
+    }
+
+    // get focal length and aperture
+    sLensfunParameters.Focal = exifData["Exif.Photo.FocalLength"].toFloat();
+    sLensfunParameters.Aperture = exifData["Exif.Photo.FNumber"].toFloat();
 
     // search database for camera
     cameras = ldb->FindCameras (exifData["Exif.Image.Make"].toString().c_str(), exifData["Exif.Image.Model"].toString().c_str());
@@ -1083,47 +1116,59 @@ static int read_opts_from_exif(const char *filename) {
     //Get lensID
     string CamMaker = exifData["Exif.Image.Make"].toString();
     transform(CamMaker.begin(), CamMaker.end(),CamMaker.begin(), ::tolower);
-    string MakerNoteKey;
+    vector<string> MakerNoteKeys;
 
-    //Select special MakerNote Tag for lens depending on Maker
+    //Try to find special MakerNote Tag for lens depending on Maker
     if ((CamMaker.find("pentax"))!=string::npos) {
-        MakerNoteKey = "Exif.Pentax.LensType";
+        MakerNoteKeys.push_back("Exif.Pentax.LensType");
+        MakerNoteKeys.push_back("Exif.PentaxDng.LensType");
     }
     else if ((CamMaker.find("canon"))!=string::npos) {
-        MakerNoteKey = "Exif.CanonCs.LensType";
+        MakerNoteKeys.push_back("Exif.CanonCs.LensType");
     }
     else if ((CamMaker.find("minolta"))!=string::npos) {
-        MakerNoteKey = "Exif.Minolta.LensID";
+        MakerNoteKeys.push_back("Exif.Minolta.LensID");
     }
     else if ((CamMaker.find("nikon"))!=string::npos) {
-        MakerNoteKey = "Exif.NikonLd3.LensIDNumber";
-        if (exifData[MakerNoteKey].toString().size()==0) {
-            MakerNoteKey = "Exif.NikonLd2.LensIDNumber";
-        }
-        if (exifData[MakerNoteKey].toString().size()==0) {
-            MakerNoteKey = "Exif.NikonLd1.LensIDNumber";
-        }
+        MakerNoteKeys.push_back("Exif.NikonLd3.LensIDNumber");
+        MakerNoteKeys.push_back("Exif.NikonLd2.LensIDNumber");
+        MakerNoteKeys.push_back("Exif.NikonLd1.LensIDNumber");
     }
     else if ((CamMaker.find("olympus"))!=string::npos) {
-        MakerNoteKey = "Exif.OlympusEq.LensType";
+        MakerNoteKeys.push_back("Exif.OlympusEq.LensType");
     }
     else {
         //Use default lens model tag for all other makers
-        MakerNoteKey = "Exif.Photo.LensModel";
+        MakerNoteKeys.push_back("Exif.Photo.LensModel");
     }
 
     //Decode Lens ID
-    if ((MakerNoteKey.size()>0) && (exifData[MakerNoteKey].toString().size()>0))  {
-        Exiv2::ExifKey ek(MakerNoteKey);
-        Exiv2::ExifData::const_iterator md = exifData.findKey(ek);
-        if (md != exifData.end()) {
-            LensNameMN = md->print(&exifData);
+    if (DEBUG)
+    {
+        g_print ("OK.\nChecking for optional lens related maker note exif tags...\n");
+    }
+    for (int i=0; i < MakerNoteKeys.size(); i++)
+    {
+        if (gexiv2_metadata_has_tag (gimp_metadata, MakerNoteKeys[i].c_str ()))
+        {
+            Exiv2::ExifKey ek(MakerNoteKeys[i]);
+            Exiv2::ExifData::const_iterator md = exifData.findKey(ek);
+            if (md != exifData.end()) {
+                LensNameMN = md->print(&exifData);
 
-            //Modify some lens names for better searching in lfDatabase
-            if ((CamMaker.find("nikon"))!=std::string::npos) {
-                StrReplace(LensNameMN, "Nikon", "");
-                StrReplace(LensNameMN, "Zoom-Nikkor", "");
+                //Modify some lens names for better searching in lfDatabase
+                if ((CamMaker.find("nikon"))!=std::string::npos) {
+                    StrReplace(LensNameMN, "Nikon", "");
+                    StrReplace(LensNameMN, "Zoom-Nikkor", "");
+                }
             }
+            if (DEBUG)
+                g_print ("\t\'%s\' was found.\n", MakerNoteKeys[i].c_str ());
+            break;            
+        }
+        else if (DEBUG)
+        {
+            g_print ("\t\'%s\' not present!\n", MakerNoteKeys[i].c_str ());
         }
     }
 
@@ -1141,11 +1186,8 @@ static int read_opts_from_exif(const char *filename) {
     }
     lf_free (cameras);
 
-    sLensfunParameters.Focal = exifData["Exif.Photo.FocalLength"].toFloat();
-    sLensfunParameters.Aperture = exifData["Exif.Photo.FNumber"].toFloat();
-
     if (DEBUG) {
-        g_print("\nExif Data:\n");
+        g_print("Retrieved exif data:\n");
         g_print("\tCamera: %s, %s\n", sLensfunParameters.CamMaker.c_str(), sLensfunParameters.Camera.c_str());
         g_print("\tLens: %s\n", sLensfunParameters.Lens.c_str());
         g_print("\tFocal Length: %f\n", sLensfunParameters.Focal);
@@ -1239,12 +1281,8 @@ run (const gchar*   name,
     }
 
     // read exif data
-    const gchar *filename = gimp_image_get_filename(imageID);
-    if (DEBUG) g_print ("Image file path: %s\n", filename);
-
-    if ((filename == NULL) || (read_opts_from_exif(filename) != 0)) {
-	    loadSettings();
-    }
+    if (read_opts_from_exif (imageID) != 0)
+       loadSettings();
 
     run_mode = GimpRunMode(param[0].data.d_int32);
     if (run_mode == GIMP_RUN_INTERACTIVE)
