@@ -54,7 +54,7 @@ static void run   (const gchar      *name,
                    gint             *nreturn_vals,
                    GimpParam       **return_vals);
 
-static gboolean create_dialog_window (GimpDrawable *drawable);
+static gboolean create_dialog_window ();
 //--------------------------------------------------------------------
 
 
@@ -535,7 +535,7 @@ modify_changed( GtkCheckButton *togglebutn,
 
 //####################################################################
 // Create gtk dialog window
-static gboolean create_dialog_window (GimpDrawable *drawable)
+static gboolean create_dialog_window ()
 {
     GtkWidget *dialog;
     GtkWidget *main_vbox;
@@ -876,52 +876,50 @@ inline int InterpolateNearest(guchar *ImgBuffer, gint w, gint h, gint channels, 
 
 //####################################################################
 // Processing
-static void process_image (GimpDrawable *drawable) {
-    gint         channels;
-    gint         x1, y1, x2, y2, imgwidth, imgheight;
+static void process_image (gint32 drawable_id) {
 
-    GimpPixelRgn rgn_in, rgn_out;
-    guchar *ImgBuffer;
-    guchar *ImgBufferOut;
+    GeglBuffer *r_buffer, *w_buffer;
+    const Babl *drawable_fmt;
 
-    if ((sLensfunParameters.CamMaker.length()==0) ||
-        (sLensfunParameters.Camera.length()==0) ||
-        (sLensfunParameters.Lens.length()==0)) {
-            return;
+    gint drawable_w, drawable_h, drawable_bpp, drawable_chan;
+
+    guchar *img_buf;
+    guchar *img_buf_out;
+
+    if ((sLensfunParameters.CamMaker.length () == 0) ||
+          (sLensfunParameters.Camera.length () == 0) ||
+            (sLensfunParameters.Lens.length () == 0))
+    {
+        return;
     }
+
+    r_buffer = gimp_drawable_get_buffer (drawable_id);
+    w_buffer = gimp_drawable_get_shadow_buffer (drawable_id);
+    drawable_w = gegl_buffer_get_width (r_buffer);
+    drawable_h = gegl_buffer_get_height (r_buffer);
+    drawable_fmt = babl_format ("R'G'B' u8");
+    drawable_bpp = babl_format_get_bytes_per_pixel (drawable_fmt);
+    drawable_chan = 3;
+
 
     #ifdef POSIX
     struct timespec profiling_start, profiling_stop;
     #endif
 
-    // get image size
-    gimp_drawable_mask_bounds (drawable->drawable_id,
-                               &x1, &y1,
-                               &x2, &y2);
-    imgwidth = x2-x1;
-    imgheight = y2-y1;
+    // Init input and output buffer, interpolation requires one border row and column
+    img_buf     = g_new (guchar, drawable_bpp * (drawable_w + 1) * (drawable_h + 1));
+    img_buf_out = g_new (guchar, drawable_bpp * (drawable_w + 1) * (drawable_h + 1));
 
-    // get number of channels
-    channels = gimp_drawable_bpp (drawable->drawable_id);
-
-    gimp_pixel_rgn_init (&rgn_in,
-                         drawable,
-                         x1, y1,
-                         imgwidth, imgheight,
-                         FALSE, FALSE);
-    gimp_pixel_rgn_init (&rgn_out,
-                         drawable,
-                         x1, y1,
-                         imgwidth, imgheight,
-                         TRUE, TRUE);
-
-    //Init input and output buffer
-    ImgBuffer = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
-    ImgBufferOut = g_new (guchar, channels * (imgwidth+1) * (imgheight+1));
     InitInterpolation(GL_INTERPOL_LZ);
 
     // Copy pixel data from GIMP to internal buffer
-    gimp_pixel_rgn_get_rect (&rgn_in, ImgBuffer, x1, y1, imgwidth, imgheight);
+    gegl_buffer_get (r_buffer,
+                     GEGL_RECTANGLE (0, 0, drawable_w, drawable_h),
+                     1.0,
+                     drawable_fmt,
+                     img_buf,
+                     GEGL_AUTO_ROWSTRIDE,
+                     GEGL_ABYSS_NONE);
 
     if (sLensfunParameters.Scale<1) {
         sLensfunParameters.ModifyFlags |= LF_MODIFY_SCALE;
@@ -947,7 +945,7 @@ static void process_image (GimpDrawable *drawable) {
     }
 
     //init lensfun modifier
-    lfModifier *mod = new lfModifier (lenses[0], sLensfunParameters.Crop, imgwidth, imgheight);
+    lfModifier *mod = new lfModifier (lenses[0], sLensfunParameters.Crop, drawable_w, drawable_h);
     mod->Initialize (  lenses[0], LF_PF_U8, sLensfunParameters.Focal,
                          sLensfunParameters.Aperture, sLensfunParameters.Distance, sLensfunParameters.Scale, sLensfunParameters.TargetGeom,
                          sLensfunParameters.ModifyFlags, sLensfunParameters.Inverse);
@@ -956,29 +954,29 @@ static void process_image (GimpDrawable *drawable) {
     #pragma omp parallel
     {
         // buffer containing undistorted coordinates for one row
-        float *UndistCoord = g_new (float, imgwidth*2*channels);
+        float *UndistCoord = g_new (float, drawable_w * 2 * drawable_chan);
 
         //main loop for processing, iterate through rows
         #pragma omp for
-        for (int i = 0; i < imgheight; i++)
+        for (int i = 0; i < drawable_h; i++)
         {
-            mod->ApplyColorModification( &ImgBuffer[(channels*imgwidth*i)],
-                                        0, i, imgwidth, 1,
+            mod->ApplyColorModification( &img_buf[(drawable_chan * drawable_w * i)],
+                                        0, i, drawable_w, 1,
                                         LF_CR_3(RED, GREEN, BLUE),
-                                        channels*imgwidth);
+                                        drawable_chan * drawable_w);
 
-            mod->ApplySubpixelGeometryDistortion (0, i, imgwidth, 1, UndistCoord);
+            mod->ApplySubpixelGeometryDistortion (0, i, drawable_w, 1, UndistCoord);
 
             float*  UndistIter = UndistCoord;
-            guchar *OutputBuffer = &ImgBufferOut[channels*imgwidth*i];
+            guchar *OutputBuffer = &img_buf_out[drawable_chan * drawable_w * i];
             //iterate through subpixels in one row
-            for (int j = 0; j < imgwidth*channels; j += channels)
+            for (int j = 0; j < drawable_w * drawable_chan; j += drawable_chan)
             {
-                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [0], UndistIter [1], 0);
+                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_chan, UndistIter [0], UndistIter [1], 0);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [2], UndistIter [3], 1);
+                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_chan, UndistIter [2], UndistIter [3], 1);
                 OutputBuffer++;
-                *OutputBuffer = InterpolateLanczos(ImgBuffer, imgwidth, imgheight, channels, UndistIter [4], UndistIter [5], 2);
+                *OutputBuffer = InterpolateLanczos(img_buf, drawable_w, drawable_h, drawable_chan, UndistIter [4], UndistIter [5], 2);
                 OutputBuffer++;
 
                 // move pointer to next pixel
@@ -990,7 +988,7 @@ static void process_image (GimpDrawable *drawable) {
             if (iRowCount % 200 == 0) {
                  #pragma omp critical
                  {
-                 gimp_progress_update ((gdouble) (iRowCount - y1) / (gdouble) (imgheight));
+                 gimp_progress_update ((gdouble) iRowCount / (gdouble) (drawable_h));
                  }
             }
         }
@@ -1003,24 +1001,28 @@ static void process_image (GimpDrawable *drawable) {
     if (DEBUG) {
         clock_gettime(CLOCK_REALTIME, &profiling_stop);
         unsigned long long int time_diff = timespec2llu(&profiling_stop) - timespec2llu(&profiling_start);
-        g_print("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, imgwidth*imgheight, time_diff / (imgwidth*imgheight));
+        g_print("\nPerformance: %12llu ns, %d pixel -> %llu ns/pixel\n", time_diff, drawable_w * drawable_h, time_diff / (drawable_w * drawable_h));
     }
     #endif
 
     //write data back to gimp
-    gimp_pixel_rgn_set_rect (&rgn_out, ImgBufferOut, x1, y1, imgwidth, imgheight);
+    gegl_buffer_set (w_buffer,
+                     GEGL_RECTANGLE (0, 0, drawable_w, drawable_h),
+                     0,
+                     drawable_fmt,
+                     img_buf_out,
+                     GEGL_AUTO_ROWSTRIDE);
 
-    gimp_drawable_flush (drawable);
-    gimp_drawable_merge_shadow (drawable->drawable_id, TRUE);
-    gimp_drawable_update (drawable->drawable_id,
-                          x1, y1,
-                          imgwidth, imgheight);
+    g_object_unref (r_buffer);
+    g_object_unref (w_buffer);
+
+    gimp_drawable_merge_shadow (drawable_id, true);
+    gimp_drawable_update (drawable_id, 0, 0, drawable_w, drawable_h);
     gimp_displays_flush ();
-    gimp_drawable_detach (drawable);
 
     // free memory
-    g_free(ImgBufferOut);
-    g_free(ImgBuffer);
+    g_free (img_buf_out);
+    g_free (img_buf);
 
     lf_free(lenses);
     lf_free(cameras);
@@ -1253,23 +1255,23 @@ run (const gchar*   name,
      GimpParam**    return_vals)
 {
     static GimpParam    values[1];
-    GimpPDBStatusType   status = GIMP_PDB_SUCCESS;
     gint32              imageID;
     GimpRunMode         run_mode;
-    GimpDrawable        *drawable;
+    gint32              drawable_id;
+    
+    gegl_init (nullptr, nullptr);
 
     /* Setting mandatory output values */
     *nreturn_vals = 1;
     *return_vals  = values;
 
     values[0].type = GIMP_PDB_STATUS;
-    values[0].data.d_status = status;
-
-    drawable = gimp_drawable_get (param[2].data.d_drawable);
+    values[0].data.d_status = GIMP_PDB_SUCCESS;
 
     gimp_progress_init ("Lensfun correction...");
 
     imageID = param[1].data.d_drawable;
+    drawable_id = param[2].data.d_drawable;
 
     if (DEBUG) g_print ("Loading database...");
     //Load lensfun database
@@ -1289,9 +1291,8 @@ run (const gchar*   name,
     {
 	    if (DEBUG) g_print ("Creating dialog...\n");
 	    /* Display the dialog */
-	    if (create_dialog_window (drawable)) {
-		    process_image(drawable);
-	    }
+	    if (create_dialog_window())
+		    process_image(drawable_id);	    
     } 
     else 
     {
@@ -1301,10 +1302,11 @@ run (const gchar*   name,
 	     * interactive use of the plugin. One day, all settings should be 
 	     * available as arguments in non-interactive mode.
 	     */
-	    process_image(drawable);
+	    process_image(drawable_id);
     }
 
     storeSettings();
+    gegl_exit ();
 
     delete ldb;
 }
