@@ -1098,10 +1098,11 @@ static int read_opts_from_exif(gint32 image_id)
     sLensfunParameters.Aperture = exif_data["Exif.Photo.FNumber"].toFloat();
 
     // search database for camera
-    const lfCamera  **cameras = ldb->FindCameras (exif_data["Exif.Image.Make"].toString().c_str(), exif_data["Exif.Image.Model"].toString().c_str());
+    const lfCamera **cameras = ldb->FindCameras (exif_data["Exif.Image.Make"].toString().c_str(), exif_data["Exif.Image.Model"].toString().c_str());
+    const lfCamera  *camera  = nullptr;
     if (cameras != nullptr)
     {
-        const lfCamera *camera = cameras [0];
+        camera = cameras [0];
         sLensfunParameters.Crop = camera->CropFactor;
         sLensfunParameters.Camera = string(lf_mlstr_get(camera->Model));
         sLensfunParameters.CamMaker = string(lf_mlstr_get(camera->Maker));
