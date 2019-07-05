@@ -31,6 +31,7 @@
 #include <libgimp/gimp.h>
 #include <libgimp/gimpui.h>
 
+#include <exiv2/error.hpp>
 #include <exiv2/image.hpp>
 #include <exiv2/exif.hpp>
 
